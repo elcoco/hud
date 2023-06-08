@@ -2,12 +2,13 @@
 
 void debug(char* fmt, ...)
 {
-    char buf[100];
+    char buf[MAX_BUF];
 
     va_list ptr;
     va_start(ptr, fmt);
     vsprintf(buf, fmt, ptr);
     va_end(ptr);
+    printf("%s", buf);
 
     //FILE* fp = fopen(LOG_PATH, "a");
     //fputs(buf, fp);
@@ -65,6 +66,7 @@ void json_print(JSONObject* jo, uint32_t level)
             debug("%s%d:%s ", JCOL_ARR_INDEX, jo->index, JRESET);
         if (jo->key)
             debug("%s%s:%s ", JCOL_KEY, jo->key, JRESET);
+        //printf("key: %s, dtype = %d\n", jo->key, jo->dtype);
 
         switch (jo->dtype) {
 
@@ -212,6 +214,60 @@ char fforward(Position* pos, char* search_lst, char* expected_lst, char* unwante
     return ret;
 }
 
+char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf)
+{
+    /* fast forward until a char from search_lst is found
+     * Save all chars in buf until a char from search_lst is found
+     * Only save in buf when a char is found in expected_lst
+     * Error is a char from unwanted_lst is found
+     *
+     * If buf == NULL,          don't save chars
+     * If expected_lst == NULL, allow all characters
+     * If unwanted_lst == NULL, allow all characters
+     */
+    // TODO char can not be -1
+
+    // save skipped chars that are on expected_lst in buffer
+    char* ptr = buf;
+
+    // don't return these chars with buffer
+    ignore_lst = (ignore_lst) ? ignore_lst : "";
+    unwanted_lst = (unwanted_lst) ? unwanted_lst : "";
+    //printf("looking for %s in %s\n", search_lst, pos->c);
+
+    while (1) {
+        if (strchr(search_lst, *(pos->c))) {
+            // check if previous character whas a backslash which indicates escaped
+            if (pos->npos > 0 && *(pos->c-1) == '\\') {
+                //printf("ignoring escaped: %c, %c\n", *(pos->c-1), *(pos->c));
+            }
+            else
+                break;
+            //printf("found char: %c\n", *(pos->c));
+        }
+        if (strchr(unwanted_lst, *(pos->c)))
+            return -1;
+
+        if (expected_lst != NULL) {
+            if (!strchr(expected_lst, *(pos->c)))
+                return -1;
+        }
+        if (buf != NULL && !strchr(ignore_lst, *(pos->c)))
+            *ptr++ = *(pos->c);
+
+        pos_next(pos);
+    }
+    // terminate string
+    if (ptr != NULL)
+        *ptr = '\0';
+
+    char ret = *(pos->c);
+
+    //if (buf)
+    //    printf("!!!!!!!!!!: >%s<\n", buf);
+    return ret;
+}
+
 JSONObject* json_object_init(JSONObject* parent)
 {
     JSONObject* jo = malloc(sizeof(JSONObject));
@@ -266,7 +322,7 @@ JSONStatus json_parse_number(JSONObject* jo, Position* pos)
     jo->dtype = JSON_NUMBER;
     jo->is_number = true;
 
-    if ((c = fforward(pos, ", ]}\n", "0123456789-null.", NULL, "\n", tmp)) < 0) {
+    if ((c = fforward_skip_escaped(pos, ", ]}\n", "0123456789-null.", NULL, "\n", tmp)) < 0) {
         print_error(pos, LINES_CONTEXT);
         return PARSE_ERROR;
     }
@@ -289,7 +345,7 @@ JSONStatus json_parse_bool(JSONObject* jo, Position* pos)
     jo->dtype = JSON_BOOL;
     jo->is_bool = true;
 
-    if ((c = fforward(pos, ", ]}\n", "truefalse", NULL, "\n", tmp)) < 0) {
+    if ((c = fforward_skip_escaped(pos, ", ]}\n", "truefalse", NULL, "\n", tmp)) < 0) {
         print_error(pos, LINES_CONTEXT);
         return PARSE_ERROR;
     }
@@ -313,7 +369,7 @@ JSONStatus json_parse_key(JSONObject* jo, Position* pos)
     char c;
 
     // skip to start of key
-    if ((c = fforward(pos, "\"'}", ", \n", NULL, "\n", NULL)) < 0) {
+    if ((c = fforward_skip_escaped(pos, "\"'}", ", \n", NULL, "\n", NULL)) < 0) {
         print_error(pos, LINES_CONTEXT);
         return PARSE_ERROR;
     }
@@ -325,7 +381,7 @@ JSONStatus json_parse_key(JSONObject* jo, Position* pos)
     pos_next(pos);
 
     // read key
-    if ((c = fforward(pos, "\"'", NULL, NULL, "\n", key)) < 0) {
+    if ((c = fforward_skip_escaped(pos, "\"'", NULL, NULL, "\n", key)) < 0) {
         printf("Error while parsing key\n");
         print_error(pos, LINES_CONTEXT);
         return PARSE_ERROR;
@@ -339,7 +395,7 @@ JSONStatus json_parse_key(JSONObject* jo, Position* pos)
     pos_next(pos);
 
     // find colon
-    if ((c = fforward(pos, ":", " \n", NULL, "\n", NULL)) < 0) {
+    if ((c = fforward_skip_escaped(pos, ":", " \n", NULL, "\n", NULL)) < 0) {
         printf("Error while parsing key\n");
         print_error(pos, LINES_CONTEXT);
         return PARSE_ERROR;
@@ -362,14 +418,14 @@ JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
 
     // look for closing quotes, quote_chr tells us if it is " or ' that we're looking for
     if (quote_chr == '\'') {
-        if ((c = fforward(pos, "'\n", NULL, NULL, "\n", tmp)) < 0) {
+        if ((c = fforward_skip_escaped(pos, "'\n", NULL, NULL, "\n", tmp)) < 0) {
             printf("Error while parsing string, Failed to find closing quotes\n");
             print_error(pos, LINES_CONTEXT);
             return PARSE_ERROR;
         }
     }
     else if (quote_chr == '"') {
-        if ((c = fforward(pos, "\"\n", NULL, NULL, "\n", tmp)) < 0) {
+        if ((c = fforward_skip_escaped(pos, "\"\n", NULL, NULL, "\n", tmp)) < 0) {
             printf("Error while parsing string, Failed to find closing quotes\n");
             print_error(pos, LINES_CONTEXT);
             return PARSE_ERROR;
@@ -379,7 +435,7 @@ JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
         return PARSE_ERROR;
     }
 
-    //if ((c = fforward(pos, "\"'\n", NULL, NULL, "\n", tmp)) < 0) {
+    //if ((c = fforward_skip_escaped(pos, "\"'\n", NULL, NULL, "\n", tmp)) < 0) {
     //    printf("Error while parsing string, Failed to find closing quotes\n");
     //    print_error(pos, LINES_CONTEXT);
     //    return PARSE_ERROR;
@@ -416,7 +472,7 @@ JSONStatus json_parse_array(JSONObject* jo, Position* pos)
         }
 
         // look for comma or array end
-        if (fforward(pos, ",]", "\n ", NULL, "\n", NULL) < 0) {
+        if (fforward_skip_escaped(pos, ",]", "\n ", NULL, "\n", NULL) < 0) {
             printf("Error while parsing array\n");
             print_error(pos, LINES_CONTEXT);
             json_obj_destroy(child);
@@ -479,7 +535,7 @@ JSONStatus json_parse_object(JSONObject* jo, Position* pos)
         }
 
         // look for comma or object end
-        if (fforward(pos, ",}", "\n ", NULL, "\n", NULL) < 0) {
+        if (fforward_skip_escaped(pos, ",}", "\n ", NULL, "\n", NULL) < 0) {
             printf("Error while parsing object\n");
             print_error(pos, LINES_CONTEXT);
             json_obj_destroy(child);
@@ -519,7 +575,7 @@ JSONStatus json_parse(JSONObject* jo, Position* pos)
     char c;
 
     // detect type
-    if ((c = fforward(pos, "\"[{1234567890-n.tf}]", NULL, NULL, "\n", tmp)) < 0) {
+    if ((c = fforward_skip_escaped(pos, "\"[{1234567890-n.tf}]", NULL, NULL, "\n", tmp)) < 0) {
         print_error(pos, LINES_CONTEXT);
         return PARSE_ERROR;
     }
@@ -540,6 +596,7 @@ JSONStatus json_parse(JSONObject* jo, Position* pos)
         pos_next(pos);
         return END_OF_OBJECT;
     }
+    //else if ((c == '"' || c == '\'') &&  *(pos->c-1) != '\\') {
     else if (c == '"' || c == '\'') {
         pos_next(pos);
         return json_parse_string(jo, pos, c);
