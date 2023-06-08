@@ -25,6 +25,7 @@ void die(char *fmt, ...)
     exit(1);
 }
 
+
 int main()
 {
     char cmd[MAXBUF] = "";
@@ -43,7 +44,7 @@ int main()
             die("End of data\n");
         
         buf[strlen(buf)-1] = '\0';
-        printf(">>%s<<\n", buf);
+        //printf(">>%s<<\n", buf);
 
         JSONObject* rn = json_load(buf);
 
@@ -51,7 +52,15 @@ int main()
             die("Error in json\n");
 
         //printf("len: %d\n", rn->next->length);
+        char path[] = "data/path";
+
+        struct JSONObject *node = json_get_path(rn, path);
+
+        if (node == NULL)
+            continue;
+
         json_print(rn, 0);
+        printf("Found node: %s\n", node->key);
 
         json_obj_destroy(rn);
     }

@@ -631,3 +631,37 @@ JSONObject* json_load(char* buf)
 
     return (ret < 0) ? NULL : root;
 }
+
+struct JSONObject* json_get_path(struct JSONObject *rn, char path[256])
+{
+    /* Find a path given as a string and return node if found */
+    if (rn == NULL)
+        return NULL;
+
+    if (!(rn->is_object || rn->is_array))
+        return NULL;
+
+
+    printf("looking for path: %s\n", path);
+
+    JSONObject* seg = rn;
+    char *token = strtok(path, PATH_DELIM);
+
+    while(token) {
+        seg = seg->value;
+
+        while (1) {
+            if (seg == NULL)
+                return NULL;
+
+            if (strncmp(token, seg->key, strlen(token)) == 0)
+                break;
+
+            seg = seg->next;
+        }
+
+        token = strtok(NULL, PATH_DELIM);
+    }
+    return seg;
+
+}

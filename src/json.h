@@ -13,6 +13,7 @@
 
 #define MAX_BUF 1024 * 10
 #define LINES_CONTEXT 100
+#define PATH_DELIM "/"
 
 #define JRESET   "\x1B[0m"
 #define JRED     "\x1B[31m"
@@ -128,5 +129,6 @@ char*       pos_next(Position *pos);
 JSONObject* json_object_init(JSONObject* parent);
 
 char fforward(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf);
+struct JSONObject* json_get_path(struct JSONObject *rn, char path[256]);
 
 #endif
