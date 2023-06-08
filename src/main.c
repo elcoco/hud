@@ -52,9 +52,8 @@ int main()
             die("Error in json\n");
 
         //printf("len: %d\n", rn->next->length);
-        char path[] = "data/path";
 
-        struct JSONObject *node = json_get_path(rn, path);
+        struct JSONObject *node = json_get_path(rn, "data/path");
 
         if (node == NULL)
             continue;

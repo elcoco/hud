@@ -129,6 +129,6 @@ char*       pos_next(Position *pos);
 JSONObject* json_object_init(JSONObject* parent);
 
 char fforward(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf);
-struct JSONObject* json_get_path(struct JSONObject *rn, char path[256]);
+struct JSONObject* json_get_path(struct JSONObject *rn, char *buf);
 
 #endif

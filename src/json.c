@@ -632,7 +632,7 @@ JSONObject* json_load(char* buf)
     return (ret < 0) ? NULL : root;
 }
 
-struct JSONObject* json_get_path(struct JSONObject *rn, char path[256])
+struct JSONObject* json_get_path(struct JSONObject *rn, char *buf)
 {
     /* Find a path given as a string and return node if found */
     if (rn == NULL)
@@ -640,6 +640,9 @@ struct JSONObject* json_get_path(struct JSONObject *rn, char path[256])
 
     if (!(rn->is_object || rn->is_array))
         return NULL;
+
+    char path[256] = "";
+    strncpy(path, buf, strlen(buf));
 
 
     printf("looking for path: %s\n", path);
