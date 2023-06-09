@@ -20,6 +20,9 @@ void rgline_print(struct RGLine *l)
 
 int rg_run(char *search, struct RGLine *l)
 {
+    /* Run Ripgrep and return hits as linked list by argument.
+     * Function returns amount of hits or error if <0
+     */
     int nfound = 0;
     struct RGLine *tmp = l;
 
@@ -34,20 +37,22 @@ int rg_run(char *search, struct RGLine *l)
     printf("exec: %s\n", cmd);
     while (!feof(pipe)) {
         char buf[RG_MAXBUF] = "";
-        if (fgets(buf, sizeof(buf), pipe) == NULL) {
-            fprintf(stderr, "End of data\n");
-            return nfound;
-        }
+
+        // check end of data
+        if (fgets(buf, sizeof(buf), pipe) == NULL)
+            break;
         
         buf[strlen(buf)-1] = '\0';
-
         JSONObject* rn = json_load(buf);
+
+        json_print(rn, 0);
 
         if (rn == NULL) {
             fprintf(stderr, "Error in json\n");
-            return -1;
+            goto on_err;
         }
 
+        // filter by only checking match type
         struct JSONObject *ntype = json_get_path(rn, "type");
 
         if (ntype == NULL)
@@ -74,8 +79,11 @@ int rg_run(char *search, struct RGLine *l)
         json_obj_destroy(rn);
     }
     pclose(pipe);
-
     return nfound;
+
+on_err:
+    pclose(pipe);
+    return -1;
 }
 
 void rg_request(char *search)
