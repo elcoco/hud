@@ -1,7 +1,9 @@
 SRC := src
 OBJ := obj
-CFLAGS := -g -Wall 
 LIBS   := -lm -lpthread
+PKGCONFIG = $(shell which pkg-config)
+CFLAGS = -g -Wall $(shell $(PKGCONFIG) --cflags gtk4)
+LDLIBS = $(shell pkg-config --libs gtk4)
 CC := cc
 
 $(shell mkdir -p $(OBJ))
@@ -11,7 +13,7 @@ SOURCES := $(wildcard $(SRC)/*.c) $(wildcard $(SRC)/*.c)
 OBJECTS := $(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SOURCES))
 
 all: $(OBJECTS)
-	$(CC) $^ $(CFLAGS) $(LIBS) -o $@ -o $(NAME)
+	$(CC) $^ $(CFLAGS) $(LIBS) $(LDLIBS) -o $@ -o $(NAME)
 
 $(OBJ)/%.o: $(SRC)/%.c
-	$(CC) -I$(SRC) $(CFLAGS) $(LIBS) -c $< -o $@
+	$(CC) -I$(SRC) $(CFLAGS) $(LIBS) $(LDLIBS) -c $< -o $@

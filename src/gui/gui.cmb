@@ -1,0 +1,25 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<!DOCTYPE cambalache-project SYSTEM "cambalache-project.dtd">
+<cambalache-project version="0.10.3" target_tk="gtk-4.0">
+  <ui>
+	(1,None,"gui.ui","gui.ui",None,None,None,None,None,None)
+  </ui>
+  <object>
+	(1,1,"GtkWindow",None,None,None,None,None,None),
+	(1,2,"GtkScrolledWindow",None,1,None,None,None,-1)
+  </object>
+  <object_property>
+	(1,1,"GtkAccessible","accessible-role","presentation",None,None,None,None,None),
+	(1,1,"GtkWindow","decorated","False",None,None,None,None,None),
+	(1,1,"GtkWindow","fullscreened","True",None,None,None,None,None),
+	(1,2,"GtkWidget","hexpand","True",None,None,None,None,None),
+	(1,2,"GtkWidget","margin-bottom","6",None,None,None,None,None),
+	(1,2,"GtkWidget","margin-end","6",None,None,None,None,None),
+	(1,2,"GtkWidget","margin-start","6",None,None,None,None,None),
+	(1,2,"GtkWidget","margin-top","6",None,None,None,None,None),
+	(1,2,"GtkWidget","vexpand","True",None,None,None,None,None)
+  </object_property>
+  <object_signal>
+	(1,1,1,"GtkWindow","close-request","gui_on_exit",None,None,None,None,None)
+  </object_signal>
+</cambalache-project>

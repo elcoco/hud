@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "json.h"
+//#include "gui.h"
 
 
 #define RIPGREP_BIN_PATH "/usr/bin/rg"
@@ -26,43 +27,10 @@ void die(char *fmt, ...)
 }
 
 
-int main()
+int main(int argc, char **argv)
 {
-    char cmd[MAXBUF] = "";
-    sprintf(cmd, "%s %s %s %s 2> /dev/null", RIPGREP_BIN_PATH, 
-                                RIPGREP_ARGS, 
-                                RIPGREP_SEARCH, 
-                                RIPGREP_PWD);
-
-    FILE *pipe = popen(cmd, "r");
-
-    printf("exec: %s\n", cmd);
-
-    while (!feof(pipe)) {
-        char buf[MAXBUF] = "";
-        if (fgets(buf, sizeof(buf), pipe) == NULL)
-            die("End of data\n");
-        
-        buf[strlen(buf)-1] = '\0';
-        //printf(">>%s<<\n", buf);
-
-        JSONObject* rn = json_load(buf);
-
-        if (rn == NULL)
-            die("Error in json\n");
-
-        //printf("len: %d\n", rn->next->length);
-
-        struct JSONObject *node = json_get_path(rn, "data/path");
-
-        if (node == NULL)
-            continue;
-
-        json_print(rn, 0);
-        printf("Found node: %s\n", node->key);
-
-        json_obj_destroy(rn);
-    }
-    pclose(pipe);
+    //start_gui(argc, argv);
+    //test_rg();
+    rg_request("banaan");
     return 0;
 }
