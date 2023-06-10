@@ -25,4 +25,8 @@ struct RGLine {
     struct RGLine *next;
 };
 
+void rgline_print_all(struct RGLine *l);
+void rg_test(char *search);
+int rg_request(char *search, struct RGLine *l);
+
 #endif // !RG_H

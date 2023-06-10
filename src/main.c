@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "json.h"
+#include "notify.h"
 //#include "gui.h"
 
 
@@ -30,7 +31,8 @@ void die(char *fmt, ...)
 int main(int argc, char **argv)
 {
     //start_gui(argc, argv);
-    //test_rg();
-    rg_request("banaan");
+    //rg_test("banaan");
+    notify_test(5);
+
     return 0;
 }

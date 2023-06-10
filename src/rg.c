@@ -18,7 +18,17 @@ void rgline_print(struct RGLine *l)
     printf("   %s\n", l->text);
 }
 
-int rg_run(char *search, struct RGLine *l)
+void rgline_print_all(struct RGLine *l)
+{
+    struct RGLine *tmp = l;
+
+    while (tmp != NULL) {
+        rgline_print(tmp);
+        tmp = tmp->next;
+    }
+}
+
+int rg_request(char *search, struct RGLine *l)
 {
     /* Run Ripgrep and return hits as linked list by argument.
      * Function returns amount of hits or error if <0
@@ -86,17 +96,10 @@ on_err:
     return -1;
 }
 
-void rg_request(char *search)
+void rg_test(char *search)
 {
     struct RGLine *l = rgline_init(NULL);
 
-    if (rg_run(search, l) > 0) {
-
-        struct RGLine *tmp = l;
-
-        while (tmp != NULL) {
-            rgline_print(tmp);
-            tmp = tmp->next;
-        }
-    }
+    if (rg_request(search, l) > 0)
+        rgline_print_all(l);
 }
