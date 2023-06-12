@@ -12,27 +12,31 @@
           <object class="GtkSearchEntry" id="search_entry"/>
         </child>
         <child>
-          <object class="GtkStack">
+          <object class="GtkStackSwitcher">
+            <property name="stack">stack</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkStack" id="stack">
+            <property name="transition-type">crossfade</property>
             <child>
-              <object class="GtkScrolledWindow" id="scroll_window">
-                <property name="hexpand">True</property>
-                <property name="margin-bottom">6</property>
-                <property name="margin-end">6</property>
-                <property name="margin-start">6</property>
-                <property name="margin-top">6</property>
-                <property name="vexpand">True</property>
-                <child>
-                  <object class="GtkListView" id="list_view">
-                    <property name="vscroll-policy">natural</property>
-                  </object>
-                </child>
+              <object class="GtkStackPage" id="page1">
+                <property name="child">
+                  <object class="GtkCheckButton"/>
+                </property>
+                <property name="title">Apps</property>
               </object>
             </child>
           </object>
         </child>
-        <child>
-          <object class="GtkStack"/>
-        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkScrolledWindow" id="scroll_window">
+    <property name="vexpand">True</property>
+    <child>
+      <object class="GtkListView" id="list_view">
+        <property name="vscroll-policy">natural</property>
       </object>
     </child>
   </object>

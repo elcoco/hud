@@ -9,7 +9,7 @@ CC := cc
 $(shell mkdir -p $(OBJ))
 NAME := $(shell basename $(shell pwd))
 
-SOURCES := $(wildcard $(SRC)/*.c) $(wildcard $(SRC)/*.c)
+SOURCES := $(wildcard $(SRC)/*.c) $(wildcard $(SRC)/*.c) 
 OBJECTS := $(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SOURCES))
 
 all: $(OBJECTS)

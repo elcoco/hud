@@ -1,5 +1,4 @@
-#include "notify.h"
-#include "json.h"
+#include "notifications.h"
 
 struct NotifyItem* notify_init(struct NotifyItem *prev)
 {

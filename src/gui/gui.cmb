@@ -8,20 +8,21 @@
 	(1,1,"GtkWindow","win",None,None,None,None,None),
 	(1,4,"GtkBox",None,1,None,None,None,1),
 	(1,7,"GtkSearchEntry","search_entry",4,None,None,None,None),
-	(1,8,"GtkStack",None,4,None,None,None,1),
-	(1,9,"GtkScrolledWindow","scroll_window",8,None,None,None,None),
-	(1,10,"GtkListView","list_view",9,None,None,None,None),
-	(1,11,"GtkStack",None,4,None,None,None,2)
+	(1,8,"GtkStack","stack",4,None,None,None,2),
+	(1,18,"GtkStackSwitcher",None,4,None,None,None,1),
+	(1,24,"GtkStackPage","page1",8,None,None,None,1),
+	(1,25,"GtkCheckButton",None,24,None,None,None,None),
+	(1,27,"GtkScrolledWindow","scroll_window",None,None,None,None,None),
+	(1,28,"GtkListView","list_view",27,None,None,None,None)
   </object>
   <object_property>
 	(1,1,"GtkWindow","decorated","False",None,None,None,None,None),
 	(1,4,"GtkOrientable","orientation","vertical",None,None,None,None,None),
-	(1,9,"GtkWidget","hexpand","True",None,None,None,None,None),
-	(1,9,"GtkWidget","margin-bottom","6",None,None,None,None,None),
-	(1,9,"GtkWidget","margin-end","6",None,None,None,None,None),
-	(1,9,"GtkWidget","margin-start","6",None,None,None,None,None),
-	(1,9,"GtkWidget","margin-top","6",None,None,None,None,None),
-	(1,9,"GtkWidget","vexpand","True",None,None,None,None,None),
-	(1,10,"GtkScrollable","vscroll-policy","natural",None,None,None,None,None)
+	(1,8,"GtkStack","transition-type","crossfade",None,None,None,None,None),
+	(1,18,"GtkStackSwitcher","stack","8",None,None,None,None,None),
+	(1,24,"GtkStackPage","child",None,None,None,None,None,25),
+	(1,24,"GtkStackPage","title","Apps",None,None,None,None,None),
+	(1,27,"GtkWidget","vexpand","True",None,None,None,None,None),
+	(1,28,"GtkScrollable","vscroll-policy","natural",None,None,None,None,None)
   </object_property>
 </cambalache-project>
