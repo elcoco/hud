@@ -4,12 +4,36 @@
   <!-- interface-name gui.ui -->
   <requires lib="gtk" version="4.6"/>
   <object class="GtkWindow" id="win">
-    <property name="accessible-role">presentation</property>
     <property name="decorated">False</property>
-    <property name="fullscreened">True</property>
-    <signal name="close-request" handler="bevers"/>
     <child>
-      <object class="GtkBox"/>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkSearchEntry" id="search_entry"/>
+        </child>
+        <child>
+          <object class="GtkStack">
+            <child>
+              <object class="GtkScrolledWindow" id="scroll_window">
+                <property name="hexpand">True</property>
+                <property name="margin-bottom">6</property>
+                <property name="margin-end">6</property>
+                <property name="margin-start">6</property>
+                <property name="margin-top">6</property>
+                <property name="vexpand">True</property>
+                <child>
+                  <object class="GtkListView" id="list_view">
+                    <property name="vscroll-policy">natural</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+          </object>
+        </child>
+        <child>
+          <object class="GtkStack"/>
+        </child>
+      </object>
     </child>
   </object>
 </interface>

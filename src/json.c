@@ -50,7 +50,7 @@ void print_error(Position *pos, uint32_t amount) {
     rctext[amount] = '\0';
     lctext[amount] = '\0';
 
-    printf("JSON syntax error: %c @ (%d,%d)\n", *(pos->c), pos->rows, pos->cols);
+    printf("JSON syntax error: >%c< @ (%d,%d)\n", *(pos->c), pos->rows, pos->cols);
     printf("%s%s%c%s<--%s%s\n", lctext, JRED, *(pos->c), JBLUE, JRESET, rctext);
 }
 
@@ -369,7 +369,8 @@ JSONStatus json_parse_key(JSONObject* jo, Position* pos)
     char c;
 
     // skip to start of key
-    if ((c = fforward_skip_escaped(pos, "\"'}", ", \n", NULL, "\n", NULL)) < 0) {
+    if ((c = fforward_skip_escaped(pos, "\"'}", ", \n\t", NULL, "\n", NULL)) < 0) {
+        printf("error\n");
         print_error(pos, LINES_CONTEXT);
         return PARSE_ERROR;
     }
@@ -472,7 +473,7 @@ JSONStatus json_parse_array(JSONObject* jo, Position* pos)
         }
 
         // look for comma or array end
-        if (fforward_skip_escaped(pos, ",]", "\n ", NULL, "\n", NULL) < 0) {
+        if (fforward_skip_escaped(pos, ",]", "\n\t ", NULL, "\n", NULL) < 0) {
             printf("Error while parsing array\n");
             print_error(pos, LINES_CONTEXT);
             json_obj_destroy(child);
@@ -535,7 +536,7 @@ JSONStatus json_parse_object(JSONObject* jo, Position* pos)
         }
 
         // look for comma or object end
-        if (fforward_skip_escaped(pos, ",}", "\n ", NULL, "\n", NULL) < 0) {
+        if (fforward_skip_escaped(pos, ",}", "\n\t ", NULL, "\n", NULL) < 0) {
             printf("Error while parsing object\n");
             print_error(pos, LINES_CONTEXT);
             json_obj_destroy(child);

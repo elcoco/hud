@@ -11,11 +11,14 @@
 #define NOTIFY_BIN_PATH "/usr/bin/dunstctl"
 #define NOTIFY_ARGS "history"
 #define NOTIFY_MAXBUF 1024 * 10
+#define NOTIFY_BUF_GROW_SIZE 256
 
 struct NotifyItem {
     char *app;
     char *summary;
     char *body;
+    char *msg;
+    float ts;
     struct NotifyItem *next;
 };
 

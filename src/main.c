@@ -5,7 +5,7 @@
 
 #include "json.h"
 #include "notify.h"
-//#include "gui.h"
+#include "gui.h"
 
 
 #define RIPGREP_BIN_PATH "/usr/bin/rg"
@@ -30,9 +30,11 @@ void die(char *fmt, ...)
 
 int main(int argc, char **argv)
 {
+
     //start_gui(argc, argv);
+    show_gui(argc, argv);
     //rg_test("banaan");
-    notify_test(5);
+    //notify_test(5);
 
     return 0;
 }

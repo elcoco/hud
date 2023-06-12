@@ -1,0 +1,165 @@
+#include "gui.h"
+
+static void bevers(GtkWindow *window)
+{
+	gtk_window_close(window);
+}
+
+static void gui_activate2(GtkApplication *app, gpointer user_data)
+{
+	/* Construct a GtkBuilder instance and load our UI description */
+	//GtkBuilder *builder = gtk_builder_new ();
+	//gtk_builder_add_from_file (builder, "gui.ui", NULL);
+	GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
+
+	/* Connect signal handlers to the constructed widgets. */
+	GtkWidget *window = gtk_builder_get_object(builder, "win");
+	gtk_window_set_application(GTK_WINDOW(window), app);
+
+	gtk_window_present(GTK_WINDOW(window));
+
+	/* We do not need the builder any more */
+	g_object_unref(builder);
+}
+
+int start_gui(int argc, char *argv[])
+{
+
+	GtkApplication *app =
+	    gtk_application_new("org.gtk.example", G_APPLICATION_DEFAULT_FLAGS);
+	g_signal_connect(app, "activate", G_CALLBACK(gui_activate2), NULL);
+
+	int status = g_application_run(G_APPLICATION(app), argc, argv);
+	g_object_unref(app);
+
+	return status;
+}
+
+static void
+setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem,
+	 gpointer user_data)
+{
+	GtkWidget *lb = gtk_label_new(NULL);
+	gtk_list_item_set_child(listitem, lb);
+	/* Because gtk_list_item_set_child sunk the floating reference of lb, releasing (unref) isn't necessary for lb. */
+}
+
+static void
+bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem,
+	gpointer user_data)
+{
+	GtkWidget *lb = gtk_list_item_get_child(listitem);
+	/* Strobj is owned by the instance. Caller mustn't change or destroy it. */
+	GtkStringObject *strobj = gtk_list_item_get_item(listitem);
+	/* The string returned by gtk_string_object_get_string is owned by the instance. */
+	gtk_label_set_text(GTK_LABEL(lb), gtk_string_object_get_string(strobj));
+}
+
+static void
+unbind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem,
+	  gpointer user_data)
+{
+	/* There's nothing to do here. */
+}
+
+static void
+teardown_cb(GtkSignalListItemFactory *self, GtkListItem *listitem,
+	    gpointer user_data)
+{
+	/* There's nothing to do here. */
+	/* GtkListItem instance will be destroyed soon. You don't need to set the child to NULL. */
+}
+
+static void app_activate(GApplication *application)
+{
+	GtkApplication *app = GTK_APPLICATION(application);
+	GtkWidget *win = gtk_application_window_new(app);
+	gtk_window_set_default_size(GTK_WINDOW(win), 600, 400);
+	GtkWidget *scr = gtk_scrolled_window_new();
+	gtk_window_set_child(GTK_WINDOW(win), scr);
+
+	char *array[] = {
+		"one", "two", "three", "four", NULL
+	};
+	/* sl is owned by ns */
+	/* ns and factory are owned by lv. */
+	/* Therefore, you don't need to care about their destruction. */
+	GtkStringList *sl = gtk_string_list_new((const char *const *)array);
+	GtkNoSelection *ns = gtk_no_selection_new(G_LIST_MODEL(sl));
+
+	GtkListItemFactory *factory = gtk_signal_list_item_factory_new();
+	g_signal_connect(factory, "setup", G_CALLBACK(setup_cb), NULL);
+	g_signal_connect(factory, "bind", G_CALLBACK(bind_cb), NULL);
+	/* The following two lines can be left out. The handlers do nothing. */
+	g_signal_connect(factory, "unbind", G_CALLBACK(unbind_cb), NULL);
+	g_signal_connect(factory, "teardown", G_CALLBACK(teardown_cb), NULL);
+
+	GtkWidget *lv = gtk_list_view_new(GTK_SELECTION_MODEL(ns), factory);
+	gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scr), lv);
+	gtk_window_present(GTK_WINDOW(win));
+}
+
+ /* ----- main ----- */
+#define APPLICATION_ID "com.github.ToshioCP.list1"
+
+int show_gui(int argc, char **argv)
+{
+	GtkApplication *app;
+	int stat;
+
+	app = gtk_application_new(APPLICATION_ID, G_APPLICATION_DEFAULT_FLAGS);
+
+	g_signal_connect(app, "activate", G_CALLBACK(app_activate), NULL);
+
+	stat = g_application_run(G_APPLICATION(app), argc, argv);
+	g_object_unref(app);
+	return stat;
+}
+
+/*
+
+static void setup_listitem_cb (GtkListItemFactory *factory, GtkListItem *list_item)
+{
+  GtkWidget *image;
+
+  image = gtk_image_new ();
+  gtk_image_set_icon_size (GTK_IMAGE (image), GTK_ICON_SIZE_LARGE);
+  gtk_list_item_set_child (list_item, image);
+}
+
+static void bind_listitem_cb (GtkListItemFactory *factory, GtkListItem *list_item)
+{
+  GtkWidget *image;
+  GAppInfo *app_info;
+
+  image = gtk_list_item_get_child (list_item);
+  app_info = gtk_list_item_get_item (list_item);
+  gtk_image_set_from_gicon (GTK_IMAGE (image), g_app_info_get_icon (app_info));
+}
+
+static void activate_cb (GtkListView  *list, guint position,
+             gpointer      unused)
+{
+  GAppInfo *app_info;
+
+  app_info = g_list_model_get_item (G_LIST_MODEL (gtk_list_view_get_model (list)), position);
+  g_app_info_launch (app_info, NULL, NULL, NULL);
+  g_object_unref (app_info);
+}
+
+void start_gui_lv()
+{
+    model = create_application_list ();
+
+    // connect listitems to model by using factory
+    GtkListItemFactory *factory = gtk_signal_list_item_factory_new ();
+    g_signal_connect (factory, "setup", G_CALLBACK (setup_listitem_cb), NULL);
+    g_signal_connect (factory, "bind", G_CALLBACK (bind_listitem_cb), NULL);
+
+    list = gtk_list_view_new (GTK_SELECTION_MODEL (gtk_single_selection_new (model)), factory);
+
+    g_signal_connect (list, "activate", G_CALLBACK (activate_cb), NULL);
+
+    gtk_scrolled_window_set_child (GTK_SCROLLED_WINDOW (sw), list);
+}
+*/
