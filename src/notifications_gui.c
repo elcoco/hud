@@ -6,15 +6,6 @@
 //
 
 
-#define NOTIFICATION_TYPE_ITEM (notification_item_get_type ())
-G_DECLARE_FINAL_TYPE(NotificationItem, notification_item, NOTIFICATION, ITEM, GObject)
-struct _NotificationItem {
-    GObject parent_instance;
-    const char *body;
-    const char *app;
-    const char *summary;
-};
-
 struct _NotificationItemClass {
     GObjectClass parent_class;
 };
@@ -75,13 +66,6 @@ static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoi
 
     GtkWidget *lb_summary = gtk_label_new(NULL);
     gtk_box_append(GTK_BOX(hbox), lb_summary);
-
-    GtkWidget *btn = gtk_button_new();
-    gtk_button_set_label(GTK_BUTTON(btn), "Ok");
-    gtk_box_append(GTK_BOX(hbox), btn);
-
-    //gtk_list_item_set_child(listitem, lb);
-    /* Because gtk_list_item_set_child sunk the floating reference of lb, releasing (unref) isn't necessary for lb. */
 }
 
 static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
@@ -129,7 +113,6 @@ gboolean custom_filter_cb(void* fitem, gpointer user_data)
     NotificationItem *item = NOTIFICATION_ITEM(fitem);
     GtkSearchEntry *w_search_entry = GTK_SEARCH_ENTRY(user_data);
     const char *inp_txt = gtk_editable_get_text(GTK_EDITABLE(w_search_entry));
-    printf("search field: %s\n", inp_txt);
 
     if (strlen(inp_txt) == 0)
         return 1;

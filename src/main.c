@@ -3,8 +3,8 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "notifications.h"
 #include "notifications_gui.h"
+#include "apps_gui.h"
 
 
 #define RIPGREP_BIN_PATH "/usr/bin/rg"
@@ -37,12 +37,17 @@ static void app_activate(GtkApplication *app)
 
 
     // init notification tab
-    GObject *w_notifications = notifications_gui_init(builder, w_search_entry);
-    GtkStackPage *w_stackpage = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_notifications));
-    gtk_stack_page_set_title(w_stackpage, "notifications");
-    gtk_stack_page_set_name(w_stackpage, "notifications");
-    gtk_stack_set_visible_child_name(GTK_STACK(w_stack), "notifications");
+    //GObject *w_notifications = notifications_gui_init(builder, w_search_entry);
+    //GtkStackPage *w_stackpage = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_notifications));
+    //gtk_stack_page_set_title(w_stackpage, "notifications");
+    //gtk_stack_page_set_name(w_stackpage, "notifications");
+    //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), "notifications");
 
+    GObject *w_apps = apps_gui_init(w_search_entry);
+    GtkStackPage *w_stackpage_apps = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_apps));
+    gtk_stack_page_set_title(w_stackpage_apps, "Apps");
+    gtk_stack_page_set_name(w_stackpage_apps, "apps");
+    //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), "notifications");
 
 
     gtk_window_present(GTK_WINDOW(win));

@@ -9,24 +9,25 @@
       <object class="GtkBox">
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkSearchEntry" id="search_entry"/>
+          <object class="GtkSearchEntry" id="search_entry">
+            <property name="halign">center</property>
+            <property name="margin-top">15</property>
+          </object>
         </child>
         <child>
           <object class="GtkStackSwitcher">
+            <property name="halign">center</property>
+            <property name="margin-bottom">5</property>
+            <property name="margin-top">10</property>
             <property name="stack">stack</property>
           </object>
         </child>
         <child>
           <object class="GtkStack" id="stack">
+            <property name="margin-bottom">10</property>
+            <property name="margin-end">10</property>
+            <property name="margin-start">10</property>
             <property name="transition-type">crossfade</property>
-            <child>
-              <object class="GtkStackPage" id="page1">
-                <property name="child">
-                  <object class="GtkCheckButton"/>
-                </property>
-                <property name="title">Apps</property>
-              </object>
-            </child>
           </object>
         </child>
       </object>
@@ -37,6 +38,19 @@
     <child>
       <object class="GtkListView" id="list_view">
         <property name="vscroll-policy">natural</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkScrolledWindow" id="sw_apps">
+    <child>
+      <object class="GtkListView" id="lv_apps">
+        <property name="vexpand">True</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkGridView" id="gv_apps">
+        <property name="halign">center</property>
+        <property name="vexpand">True</property>
       </object>
     </child>
   </object>
