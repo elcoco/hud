@@ -36,12 +36,10 @@ char* notify_buf_grow(char *buf, size_t grow_size)
         return buf;
     }
     else if (strlen(buf) + grow_size > size) {
-        printf("growing buf (%ld): %ld -> %ld\n", strlen(buf), size, size + grow_size);
         size += grow_size;
         return realloc(buf, size);
     }
     else {
-        printf("nothing to do\n");
         return buf;
     }
 }
@@ -74,7 +72,7 @@ int notify_req(int amount, struct NotifyItem *ni)
         //printf(">>%s<<\n", buf);
     }
     buf[strlen(buf)-1] = '\0';
-    printf(">>%s<<\n", buf);
+    //printf(">>%s<<\n", buf);
     JSONObject* rn = json_load(buf);
 
     if (rn == NULL || !rn->is_object) {
@@ -84,20 +82,18 @@ int notify_req(int amount, struct NotifyItem *ni)
 
     // TODO path with mixed keys/array indices should be possible
 
-    printf("FOUND!!!!\n\n");
     struct JSONObject *n1 = json_get_path(rn, "data");
     struct JSONObject *msgs = n1->children[0];
     struct JSONObject *msg = msgs->value;
 
-
     struct NotifyItem *ni_tmp = ni;
 
     while (msg != NULL) {
-        json_print(msg, 0);
+        //json_print(msg, 0);
 
         struct JSONObject *nbody = json_get_path(msg, "body/data");
         struct JSONObject *nmsg  = json_get_path(msg, "message/data");
-        struct JSONObject *nsum = json_get_path(msg, "summary/data");
+        struct JSONObject *nsum  = json_get_path(msg, "summary/data");
         struct JSONObject *napp  = json_get_path(msg, "app/data");
         struct JSONObject *nts   = json_get_path(msg, "timestamp/data");
 

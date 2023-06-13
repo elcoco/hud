@@ -1,4 +1,5 @@
 #ifndef NOTIFICATIONS_H
+#define NOTIFICATIONS_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,5 +25,6 @@ struct NotifyItem {
 
 int notify_req(int amount, struct NotifyItem *ni);
 void notify_test(int amount);
+struct NotifyItem* notify_init(struct NotifyItem *prev);
 
 #endif // !NOTIFICATIONS_H

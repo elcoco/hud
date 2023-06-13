@@ -645,8 +645,6 @@ struct JSONObject* json_get_path(struct JSONObject *rn, char *buf)
     char path[256] = "";
     strncpy(path, buf, strlen(buf));
 
-    printf("looking for path: %s\n", path);
-
     JSONObject* seg = rn;
     char *token = strtok(path, PATH_DELIM);
 
