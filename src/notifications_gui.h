@@ -18,6 +18,9 @@ struct _NotificationItem {
     const char *summary;
 };
 
-GObject* notifications_gui_init(GtkBuilder *builder, GObject *w_search_entry);
+#define APPS_UI_PATH "src/gui/gui.ui"
+
+GObject* notifications_gui_init();
+
 
 #endif // !GUI_H

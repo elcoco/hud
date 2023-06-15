@@ -17,6 +17,6 @@ struct _AppItem {
 
 #define APPS_UI_PATH "src/gui/gui.ui"
 
-GObject* apps_gui_init(GObject *w_search_entry);
+GObject* apps_gui_init();
 
 #endif // !APPS_H

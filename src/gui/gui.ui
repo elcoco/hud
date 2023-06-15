@@ -3,54 +3,68 @@
 <interface>
   <!-- interface-name gui.ui -->
   <requires lib="gtk" version="4.6"/>
-  <object class="GtkWindow" id="win">
-    <property name="decorated">False</property>
+  <object class="GtkBox" id="apps_box">
+    <property name="orientation">vertical</property>
+    <child>
+      <object class="GtkSearchEntry" id="apps_se">
+        <property name="halign">center</property>
+        <property name="margin-bottom">10</property>
+        <property name="margin-top">10</property>
+        <property name="placeholder-text">Search Apps</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkScrolledWindow" id="apps_sw">
+        <child>
+          <object class="GtkGridView" id="apps_gv">
+            <property name="halign">center</property>
+            <property name="vexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
+  <object class="GtkDialog" id="main_win">
     <child>
       <object class="GtkBox">
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkSearchEntry" id="search_entry">
-            <property name="halign">center</property>
-            <property name="margin-top">15</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkStackSwitcher">
-            <property name="halign">center</property>
-            <property name="margin-bottom">5</property>
-            <property name="margin-top">10</property>
-            <property name="stack">stack</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkStack" id="stack">
-            <property name="margin-bottom">10</property>
+          <object class="GtkStack" id="main_stack">
             <property name="margin-end">10</property>
             <property name="margin-start">10</property>
             <property name="transition-type">crossfade</property>
           </object>
         </child>
+        <child>
+          <object class="GtkStackSwitcher">
+            <property name="halign">center</property>
+            <property name="margin-bottom">10</property>
+            <property name="margin-top">10</property>
+            <property name="stack">main_stack</property>
+          </object>
+        </child>
       </object>
     </child>
   </object>
-  <object class="GtkScrolledWindow" id="scroll_window">
-    <property name="vexpand">True</property>
+  <object class="GtkBox" id="notifications_box">
+    <property name="orientation">vertical</property>
     <child>
-      <object class="GtkListView" id="list_view">
-        <property name="vscroll-policy">natural</property>
-      </object>
-    </child>
-  </object>
-  <object class="GtkScrolledWindow" id="sw_apps">
-    <child>
-      <object class="GtkListView" id="lv_apps">
-        <property name="vexpand">True</property>
-      </object>
-    </child>
-    <child>
-      <object class="GtkGridView" id="gv_apps">
+      <object class="GtkSearchEntry" id="notifications_se">
         <property name="halign">center</property>
+        <property name="margin-bottom">10</property>
+        <property name="margin-top">10</property>
+        <property name="placeholder-text">Search Notifications</property>
+      </object>
+    </child>
+    <child>
+      <object class="GtkScrolledWindow" id="notifications_sw">
         <property name="vexpand">True</property>
+        <child>
+          <object class="GtkListView" id="notifications_lv">
+            <property name="halign">center</property>
+            <property name="vscroll-policy">natural</property>
+          </object>
+        </child>
       </object>
     </child>
   </object>

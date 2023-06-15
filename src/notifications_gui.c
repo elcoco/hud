@@ -135,13 +135,26 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
     gtk_filter_changed(filter, GTK_FILTER_CHANGE_DIFFERENT);
 }
 
-GObject* notifications_gui_init(GtkBuilder *builder, GObject *w_search_entry)
+static void on_stop_search(void* self, gpointer user_data)
+{
+    printf("bevers!!!!!!\n");
+}
+
+GObject* notifications_gui_init()
 {
     // create our custom model
     GListModel *notification_model = notification_model_new();
 
-    GObject *w_scroll_window = gtk_builder_get_object(builder, "scroll_window");
-    GObject *w_list_view     = gtk_builder_get_object(builder, "list_view");
+    GtkBuilder *builder = gtk_builder_new_from_file(APPS_UI_PATH);
+
+    GObject *w_vbox          = gtk_builder_get_object(builder, "notifications_box");
+    GObject *w_scroll_window = gtk_builder_get_object(builder, "notifications_sw");
+    GObject *w_list_view     = gtk_builder_get_object(builder, "notifications_lv");
+    GObject *w_search_entry  = gtk_builder_get_object(builder, "notifications_se");
+
+    if (w_scroll_window == NULL) {
+        printf("NOT FOUND !!!!!!!!!!!!!!!!!!!1\n");
+    }
 
     // custom filter model that filters through all fields
     GtkFilter *filter = GTK_FILTER(gtk_custom_filter_new(custom_filter_cb, w_search_entry, NULL));
@@ -156,10 +169,45 @@ GObject* notifications_gui_init(GtkBuilder *builder, GObject *w_search_entry)
     g_signal_connect(factory, "setup", G_CALLBACK(setup_cb), NULL);
     g_signal_connect(factory, "bind",  G_CALLBACK(bind_cb), NULL);
 
+    /*
+gulong
+g_signal_handler_find (
+  GObject* instance,
+  GSignalMatchType mask,
+  guint signal_id,
+  GQuark detail,
+  GClosure* closure,
+  gpointer func,
+  gpointer data
+)
+
+gboolean
+g_signal_parse_name (
+  const gchar* detailed_signal,
+  GType itype,
+  guint* signal_id_p,
+  GQuark* detail_p,
+  gboolean force_detail_quark
+)
+*/
+    g_signal_connect(w_search_entry, "stop-search",  G_CALLBACK(on_stop_search), NULL);
+
+    // find signal id for type/signal
+    guint sig_id;
+    g_signal_parse_name("stop-search", GTK_TYPE_SEARCH_ENTRY, &sig_id, NULL, 0);
+    // find signal handler for instance with matching signal id
+    gulong sig_handler = g_signal_handler_find(G_OBJECT(w_search_entry), G_SIGNAL_MATCH_ID, sig_id, 0, NULL, NULL, NULL);
+    // disconnect handler
+    g_signal_handler_disconnect(G_OBJECT(w_search_entry), sig_handler);
+
+    printf("FOUND ID: %d\n", sig_id);
+    printf("FOUND HANDLER: %ld\n", sig_handler);
+
+
     gtk_list_view_set_model(GTK_LIST_VIEW(w_list_view), GTK_SELECTION_MODEL(no_sel));
     gtk_list_view_set_factory(GTK_LIST_VIEW(w_list_view), GTK_LIST_ITEM_FACTORY(factory));
 
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(w_scroll_window), GTK_WIDGET(w_list_view));
 
-    return w_scroll_window;
+    return w_vbox;
 }
