@@ -135,9 +135,13 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
     gtk_filter_changed(filter, GTK_FILTER_CHANGE_DIFFERENT);
 }
 
-static void on_stop_search(void* self, gpointer user_data)
+//gboolean keypressHandeler(GtkWidget *widget, GdkEventKey *event, gpointer data){
+gboolean on_stop_search(GtkWidget *widget, gpointer data)
 {
     printf("bevers!!!!!!\n");
+    //gtk_widget_event(GTK_WIDGET(widget), event);
+    return FALSE;
+
 }
 
 GObject* notifications_gui_init()
@@ -198,10 +202,18 @@ g_signal_parse_name (
     // find signal handler for instance with matching signal id
     gulong sig_handler = g_signal_handler_find(G_OBJECT(w_search_entry), G_SIGNAL_MATCH_ID, sig_id, 0, NULL, NULL, NULL);
     // disconnect handler
-    g_signal_handler_disconnect(G_OBJECT(w_search_entry), sig_handler);
+    //g_signal_handler_disconnect(G_OBJECT(w_search_entry), sig_handler);
 
     printf("FOUND ID: %d\n", sig_id);
     printf("FOUND HANDLER: %ld\n", sig_handler);
+
+
+    //GtkEventController *controller = gtk_shortcut_controller_new();
+    //gtk_widget_add_controller(GTK_WIDGET(w_search_entry), controller);
+    //gtk_shortcut_controller_remove_shortcut(controller, shortcut);
+
+
+
 
 
     gtk_list_view_set_model(GTK_LIST_VIEW(w_list_view), GTK_SELECTION_MODEL(no_sel));
