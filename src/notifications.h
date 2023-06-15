@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <time.h>
 
 #include "json.h"
 
@@ -19,7 +20,7 @@ struct NotifyItem {
     char *summary;
     char *body;
     char *msg;
-    float ts;
+    time_t ts;
     struct NotifyItem *next;
 };
 

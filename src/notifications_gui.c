@@ -19,7 +19,7 @@ static void notification_item_class_init(NotificationItemClass *class)
 {
 }
 
-static NotificationItem *notification_item_new(const char *app, const char *body, const char *summary)
+static NotificationItem *notification_item_new(const char *app, const char *body, const char *summary, time_t ts)
 {
     NotificationItem *item;
 
@@ -28,6 +28,7 @@ static NotificationItem *notification_item_new(const char *app, const char *body
     item->app = app;
     item->body = body;
     item->summary = summary;
+    item->ts = ts;
 
     return item;
 }
@@ -44,7 +45,7 @@ static GListModel *notification_model_new(void)
 
     while (ni != NULL) {
 
-        NotificationItem *item = notification_item_new(ni->app, ni->summary, ni->body);
+        NotificationItem *item = notification_item_new(ni->app, ni->summary, ni->body, ni->ts);
         g_list_store_append(store, item);
         ni = ni->next;
     }
@@ -54,7 +55,7 @@ static GListModel *notification_model_new(void)
 
 static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
 {
-    GtkBuilder *builder = gtk_builder_new_from_file(APPS_UI_PATH);
+    GtkBuilder *builder = gtk_builder_new_from_resource(NOTIFICATION_UI_PATH);
 
     GObject *w_box = gtk_builder_get_object(builder, "notification_box");
     GObject *w_icon = gtk_builder_get_object(builder, "notification_icon");
@@ -107,18 +108,23 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     GListStore *store = g_list_store_new(G_TYPE_OBJECT);
     GList *apps = g_app_info_get_all();
     GList *app = apps;
+
+    GIcon *match = NULL;
     while (app != NULL) {
         GAppInfo *app_info = app->data;
         const char *name = g_app_info_get_name(app_info);
 
         if (strcmp(name, NOTIFICATION_ITEM(item)->app) == 0) {
-            gtk_image_set_from_gicon(GTK_IMAGE(image), g_app_info_get_icon(app_info));
-            printf("Match!!!!!\n");
+            match = g_app_info_get_icon(app_info);
+            break;
         }
-
-
         app = app->next;
     }
+
+    if (match == NULL)
+        gtk_image_set_from_resource(GTK_IMAGE(image), NOTIFICATION_RESOURCE_DEFAULT_ICON);
+    else
+        gtk_image_set_from_gicon(GTK_IMAGE(image), match);
 
 
     //
@@ -130,27 +136,10 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     gtk_label_set_text(GTK_LABEL(lb_app), NOTIFICATION_ITEM(item)->app);
     gtk_label_set_text(GTK_LABEL(lb_body), NOTIFICATION_ITEM(item)->body);
     gtk_label_set_text(GTK_LABEL(lb_summary), NOTIFICATION_ITEM(item)->summary);
-}
 
-void str_to_lower(char *buf)
-{
-    for (int i=0 ; i<strlen(buf) ; i++)
-        buf[i] = tolower(buf[i]);
-}
-
-int find_substr(const char *haystack, const char *needle)
-{
-    char *str = strdup(haystack);
-    char *substr = strdup(needle);
-    str_to_lower(str);
-    str_to_lower(substr);
-
-    int res = (strstr(str, substr)) ? 1 : 0;
-
-    free(str);
-    free(substr);
-
-    return res;
+    char ts[128] = "";
+    strftime(ts, 128, "%Y-%m-%d %H:%M:%S", localtime(&NOTIFICATION_ITEM(item)->ts));
+    gtk_label_set_text(GTK_LABEL(lb_time), ts);
 }
 
 gboolean custom_filter_cb(void* fitem, gpointer user_data)
@@ -191,19 +180,22 @@ gboolean on_stop_search(GtkWidget *widget, gpointer data)
 
 GObject* notifications_gui_init()
 {
+    /*
+    static int is_initialized = 0;
+    if (is_initialized)
+        return NULL;
+    is_initialized = 1;
+    */
+
     // create our custom model
     GListModel *notification_model = notification_model_new();
 
-    GtkBuilder *builder = gtk_builder_new_from_file(APPS_UI_PATH);
+    GtkBuilder *builder = gtk_builder_new_from_resource(NOTIFICATIONS_UI_PATH);
 
     GObject *w_vbox          = gtk_builder_get_object(builder, "notifications_box");
     GObject *w_scroll_window = gtk_builder_get_object(builder, "notifications_sw");
     GObject *w_list_view     = gtk_builder_get_object(builder, "notifications_lv");
     GObject *w_search_entry  = gtk_builder_get_object(builder, "notifications_se");
-
-    if (w_scroll_window == NULL) {
-        printf("NOT FOUND !!!!!!!!!!!!!!!!!!!1\n");
-    }
 
     // custom filter model that filters through all fields
     GtkFilter *filter = GTK_FILTER(gtk_custom_filter_new(custom_filter_cb, w_search_entry, NULL));
@@ -247,3 +239,4 @@ GObject* notifications_gui_init()
 
     return w_vbox;
 }
+

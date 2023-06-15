@@ -16,4 +16,5 @@ all: $(OBJECTS)
 	$(CC) $^ $(CFLAGS) $(LIBS) $(LDLIBS) -o $@ -o $(NAME)
 
 $(OBJ)/%.o: $(SRC)/%.c
+	glib-compile-resources resources/gresource.xml --target=src/resources.c --generate-source
 	$(CC) -I$(SRC) $(CFLAGS) $(LIBS) $(LDLIBS) -c $< -o $@

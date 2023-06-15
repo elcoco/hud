@@ -152,7 +152,7 @@ GObject* apps_gui_init()
     // create our custom model
     GListModel *app_model = app_model_new();
 
-    GtkBuilder *builder = gtk_builder_new_from_file(APPS_UI_PATH);
+    GtkBuilder *builder = gtk_builder_new_from_resource(APPS_UI_PATH);
 
     GObject *w_scroll_window = gtk_builder_get_object(builder, "apps_sw");
     GObject *w_grid_view     = gtk_builder_get_object(builder, "apps_gv");

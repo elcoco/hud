@@ -44,6 +44,20 @@ char* notify_buf_grow(char *buf, size_t grow_size)
     }
 }
 
+time_t get_uptime()
+{
+    char uptime_chr[28];
+    long uptime = 0;
+
+    FILE* uptimefile = fopen("/proc/uptime", "r");
+    fgets(uptime_chr, 12, uptimefile);
+    fclose(uptimefile);
+    uptime = strtol(uptime_chr, NULL, 10);
+
+    //printf("System up for %ld seconds, %ld hours\n", uptime, uptime / 3600);
+    return uptime;
+}
+
 int notify_req(int amount, struct NotifyItem *ni)
 {
     /* Get amount of notifications from dunstctl
@@ -101,7 +115,9 @@ int notify_req(int amount, struct NotifyItem *ni)
         ni_tmp->msg     = strdup(nmsg->value);
         ni_tmp->summary = strdup(nsum->value);
         ni_tmp->app     = strdup(napp->value);
-        ni_tmp->ts      = json_get_number(nts);
+
+        // dunst timestamp is microseconds (?) since boot time
+        ni_tmp->ts = time(NULL) - (get_uptime() - (time_t)json_get_number(nts)/1000000);
 
         ni_tmp = notify_init(ni_tmp);
         msg = msg->next;

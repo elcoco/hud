@@ -1,12 +1,13 @@
 #ifndef NOTIFICATIONS_GUI_H
 #define NOTIFICATIONS_GUI_H
 
-#include <ctype.h>      // to_lower()
+#include <time.h>
 
 #include <gtk/gtk.h>
 #include <glib/gstdio.h>
 
 #include "notifications.h"
+#include "utils.h"
 
 
 #define NOTIFICATION_TYPE_ITEM (notification_item_get_type ())
@@ -16,9 +17,12 @@ struct _NotificationItem {
     const char *body;
     const char *app;
     const char *summary;
+    time_t ts;
 };
 
-#define APPS_UI_PATH "src/gui/gui.ui"
+#define NOTIFICATIONS_UI_PATH "/resources/ui/gui.ui"
+#define NOTIFICATION_UI_PATH "/resources/ui/gui.ui"
+#define NOTIFICATION_RESOURCE_DEFAULT_ICON "resources/icons/notification.png"
 
 GObject* notifications_gui_init();
 

@@ -4,9 +4,8 @@
 struct RGLine* rgline_init(struct RGLine *prev)
 {
     struct RGLine *l = malloc(sizeof(struct RGLine));
-    if (prev != NULL) {
+    if (prev != NULL)
         prev->next = l;
-    }
     l->next = NULL;
 
     return l;
@@ -28,7 +27,7 @@ void rgline_print_all(struct RGLine *l)
     }
 }
 
-int rg_request(char *search, struct RGLine *l)
+int rg_request(const char *search, struct RGLine *l)
 {
     /* Run Ripgrep and return hits as linked list by argument.
      * Function returns amount of hits or error if <0
@@ -55,7 +54,7 @@ int rg_request(char *search, struct RGLine *l)
         buf[strlen(buf)-1] = '\0';
         JSONObject* rn = json_load(buf);
 
-        json_print(rn, 0);
+        //json_print(rn, 0);
 
         if (rn == NULL) {
             fprintf(stderr, "Error in json\n");
@@ -71,10 +70,11 @@ int rg_request(char *search, struct RGLine *l)
         if (strcmp(ntype->value, "match") != 0)
             continue;
 
-        struct JSONObject *npath = json_get_path(rn, "data/path/text");
-        struct JSONObject *ntext = json_get_path(rn, "data/lines/text");
+        struct JSONObject *npath  = json_get_path(rn, "data/path/text");
+        struct JSONObject *ntext  = json_get_path(rn, "data/lines/text");
+        struct JSONObject *lineno = json_get_path(rn, "data/line_number");
 
-        if (npath == NULL || ntext == NULL)
+        if (npath == NULL || ntext == NULL || lineno == NULL)
             continue;
 
         // connect next in linked list
@@ -83,6 +83,7 @@ int rg_request(char *search, struct RGLine *l)
 
         tmp->path = strdup(npath->value);
         tmp->text = strdup(ntext->value);
+        tmp->lineno = json_get_number(lineno);
 
         nfound++;
 

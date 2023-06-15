@@ -15,7 +15,7 @@ struct _AppItem {
     GAppInfo *app_info;
 };
 
-#define APPS_UI_PATH "src/gui/gui.ui"
+#define APPS_UI_PATH "/resources/ui/gui.ui"
 
 GObject* apps_gui_init();
 

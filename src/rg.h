@@ -1,4 +1,5 @@
 #ifndef RG_H
+#define RG_H
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -21,12 +22,15 @@ struct RGLine;
 struct RGLine {
     char *text;
     char *path;
+    int lineno;
 
     struct RGLine *next;
 };
 
 void rgline_print_all(struct RGLine *l);
 void rg_test(char *search);
-int rg_request(char *search, struct RGLine *l);
+//int rg_request(char *search, struct RGLine *l);
+int rg_request(const char *search, struct RGLine *l);
+struct RGLine* rgline_init(struct RGLine *prev);
 
 #endif // !RG_H
