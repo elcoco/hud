@@ -16,7 +16,14 @@
 	(1,56,"GtkBox","notifications_box",None,None,None,None,None),
 	(1,58,"GtkSearchEntry","notifications_se",56,None,None,None,1),
 	(1,59,"GtkScrolledWindow","notifications_sw",56,None,None,None,2),
-	(1,60,"GtkListView","notifications_lv",59,None,None,None,None)
+	(1,60,"GtkListView","notifications_lv",59,None,None,None,None),
+	(1,61,"GtkBox","notification_box",None,None,None,None,None),
+	(1,62,"GtkBox","notification_header_box",61,None,None,None,None),
+	(1,64,"GtkLabel","notification_app_lb",62,None,None,None,1),
+	(1,65,"GtkLabel","notification_time_lb",62,None,None,None,2),
+	(1,66,"GtkLabel","notification_summary_lb",61,None,None,None,1),
+	(1,67,"GtkLabel","notification_body_lb",61,None,None,None,2),
+	(1,68,"GtkImage","notification_icon",62,None,None,None,None)
   </object>
   <object_property>
 	(1,38,"GtkOrientable","orientation","vertical",None,None,None,None,None),
@@ -41,6 +48,23 @@
 	(1,58,"GtkWidget","margin-top","10",None,None,None,None,None),
 	(1,59,"GtkWidget","vexpand","True",None,None,None,None,None),
 	(1,60,"GtkScrollable","vscroll-policy","natural",None,None,None,None,None),
-	(1,60,"GtkWidget","halign","center",None,None,None,None,None)
+	(1,60,"GtkWidget","halign","center",None,None,None,None,None),
+	(1,61,"GtkOrientable","orientation","vertical",None,None,None,None,None),
+	(1,61,"GtkWidget","margin-bottom","10",None,None,None,None,None),
+	(1,61,"GtkWidget","margin-end","10",None,None,None,None,None),
+	(1,61,"GtkWidget","margin-start","10",None,None,None,None,None),
+	(1,61,"GtkWidget","margin-top","10",None,None,None,None,None),
+	(1,62,"GtkWidget","margin-bottom","5",None,None,None,None,None),
+	(1,64,"GtkLabel","label","appname",None,None,None,None,None),
+	(1,64,"GtkWidget","margin-start","10",None,None,None,None,None),
+	(1,65,"GtkLabel","justify","right",None,None,None,None,None),
+	(1,65,"GtkLabel","label","time",None,None,None,None,None),
+	(1,65,"GtkWidget","halign","end",None,None,None,None,None),
+	(1,65,"GtkWidget","hexpand","True",None,None,None,None,None),
+	(1,66,"GtkLabel","label","summary",None,None,None,None,None),
+	(1,66,"GtkWidget","halign","start",None,None,None,None,None),
+	(1,67,"GtkLabel","label","body",None,None,None,None,None),
+	(1,67,"GtkLabel","wrap","True",None,None,None,None,None),
+	(1,67,"GtkWidget","halign","start",None,None,None,None,None)
   </object_property>
 </cambalache-project>

@@ -51,15 +51,13 @@ static gboolean on_shortcut(GtkWidget *widget, GVariant *args, gpointer data)
 }
 
 
-gint glist_custom_cb(gconstpointer a, gconstpointer b)
+gint glist_find_custom_cb(gconstpointer a, gconstpointer b)
 {
-    printf("%s <-> %s\n", a, b);
+    /* Custom callback for finding stuff in a glist linked list */
     if (strcmp(a, b) == 0)
         return 0;
     else
         return 1;
-
-
 }
 
 static gboolean focus_tab_prev_cb(GtkWidget *widget, GVariant *args, gpointer data)
@@ -69,9 +67,10 @@ static gboolean focus_tab_prev_cb(GtkWidget *widget, GVariant *args, gpointer da
     GList *first = data;
     GList *match;
 
-    if ((match = g_list_find_custom(first, cur, glist_custom_cb))) {
+    if ((match = g_list_find_custom(first, cur, glist_find_custom_cb))) {
         GList *prev;
 
+        // wrap
         if (match->prev == NULL)
             prev = g_list_last(first);
         else
@@ -88,9 +87,10 @@ static gboolean focus_tab_next_cb(GtkWidget *widget, GVariant *args, gpointer da
     GList *first = data;
     GList *match;
 
-    if ((match = g_list_find_custom(first, cur, glist_custom_cb))) {
+    if ((match = g_list_find_custom(first, cur, glist_find_custom_cb))) {
         GList *next;
 
+        // wrap
         if (match->next == NULL)
             next = first;
         else
@@ -107,6 +107,12 @@ static void app_activate(GtkApplication *app)
     GObject *w_stack = gtk_builder_get_object(builder, "main_stack");
 
     gtk_window_set_application(GTK_WINDOW(win), app);
+
+    // keep track of stack page names so we can cycle them
+    GList *names = g_list_alloc();
+    names = g_list_append(NULL, "apps");
+    names = g_list_append(names, "notifications");
+    names = g_list_append(names, "bever");
 
     // setup apps stackpage
     GObject *w_apps = apps_gui_init();
@@ -125,7 +131,7 @@ static void app_activate(GtkApplication *app)
     gtk_stack_page_set_title(w_stackpage0, "Bever");
     gtk_stack_page_set_name(w_stackpage0, "bever");
 
-    gtk_stack_set_visible_child_name(GTK_STACK(w_stack), "notifications");
+    //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), "notifications");
 
     // setup keyboard shortcuts
     GtkEventController *controller = gtk_shortcut_controller_new();
@@ -144,17 +150,12 @@ static void app_activate(GtkApplication *app)
                                                           gtk_callback_action_new(on_shortcut, "bever", NULL)));
 
     // cycle through stack pages using ctrl-tab / ctrl-shift-tab
-    GList *pnames = g_list_alloc();
-    pnames = g_list_append(NULL,   "apps");
-    pnames = g_list_append(pnames, "notifications");
-    pnames = g_list_append(pnames, "bever");
-
     gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
                                          gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Tab, GDK_CONTROL_MASK),
-                                                          gtk_callback_action_new(focus_tab_next_cb, pnames, NULL)));
+                                                          gtk_callback_action_new(focus_tab_next_cb, names, NULL)));
     gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
                                          gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Tab, GDK_SHIFT_MASK | GDK_CONTROL_MASK),
-                                                          gtk_callback_action_new(focus_tab_prev_cb, pnames, NULL)));
+                                                          gtk_callback_action_new(focus_tab_prev_cb, names, NULL)));
 
     gtk_window_present(GTK_WINDOW(win));
     g_object_unref(builder);

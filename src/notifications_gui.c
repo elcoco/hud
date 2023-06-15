@@ -54,18 +54,30 @@ static GListModel *notification_model_new(void)
 
 static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
 {
+    GtkBuilder *builder = gtk_builder_new_from_file(APPS_UI_PATH);
+
+    GObject *w_box = gtk_builder_get_object(builder, "notification_box");
+    GObject *w_icon = gtk_builder_get_object(builder, "notification_icon");
+    GObject *w_app_lb = gtk_builder_get_object(builder, "notification_app_lb");
+    GObject *w_time_lb = gtk_builder_get_object(builder, "notification_time_lb");
+
+    GObject *w_summ_lb = gtk_builder_get_object(builder, "notification_summary_lb");
+    GObject *w_body_lb = gtk_builder_get_object(builder, "notification_body_lb");
+
+    gtk_list_item_set_child(listitem, GTK_WIDGET(w_box));
+
     /* Setup new rows */
-    GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    gtk_list_item_set_child(listitem, hbox);
+    //GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    //gtk_list_item_set_child(listitem, hbox);
 
-    GtkWidget *lb_app = gtk_label_new(NULL);
-    gtk_box_append(GTK_BOX(hbox), lb_app);
+    //GtkWidget *lb_app = gtk_label_new(NULL);
+    //gtk_box_append(GTK_BOX(hbox), lb_app);
 
-    GtkWidget *lb_body = gtk_label_new(NULL);
-    gtk_box_append(GTK_BOX(hbox), lb_body);
+    //GtkWidget *lb_body = gtk_label_new(NULL);
+    //gtk_box_append(GTK_BOX(hbox), lb_body);
 
-    GtkWidget *lb_summary = gtk_label_new(NULL);
-    gtk_box_append(GTK_BOX(hbox), lb_summary);
+    //GtkWidget *lb_summary = gtk_label_new(NULL);
+    //gtk_box_append(GTK_BOX(hbox), lb_summary);
 }
 
 static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
@@ -77,10 +89,43 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     // custom model item that contains the data
     NotificationItem *item = gtk_list_item_get_item(listitem);
 
-    GtkWidget *hbox = gtk_list_item_get_child(listitem);
-    GtkWidget *lb_app = gtk_widget_get_first_child(GTK_WIDGET(hbox));
-    GtkWidget *lb_body = gtk_widget_get_next_sibling(GTK_WIDGET(lb_app));
-    GtkWidget *lb_summary = gtk_widget_get_next_sibling(GTK_WIDGET(lb_body));
+     if (item->app == NULL)
+         return;
+
+    GtkWidget *main_box = gtk_list_item_get_child(listitem);
+    GtkWidget *header_box = gtk_widget_get_first_child(GTK_WIDGET(main_box));
+    
+    GtkWidget *image = gtk_widget_get_first_child(GTK_WIDGET(header_box));
+    GtkWidget *lb_app = gtk_widget_get_next_sibling(GTK_WIDGET(image));
+    GtkWidget *lb_time = gtk_widget_get_next_sibling(GTK_WIDGET(lb_app));
+
+    GtkWidget *lb_summary = gtk_widget_get_next_sibling(GTK_WIDGET(header_box));
+    GtkWidget *lb_body = gtk_widget_get_next_sibling(GTK_WIDGET(lb_summary));
+
+
+    // lookup icon
+    GListStore *store = g_list_store_new(G_TYPE_OBJECT);
+    GList *apps = g_app_info_get_all();
+    GList *app = apps;
+    while (app != NULL) {
+        GAppInfo *app_info = app->data;
+        const char *name = g_app_info_get_name(app_info);
+
+        if (strcmp(name, NOTIFICATION_ITEM(item)->app) == 0) {
+            gtk_image_set_from_gicon(GTK_IMAGE(image), g_app_info_get_icon(app_info));
+            printf("Match!!!!!\n");
+        }
+
+
+        app = app->next;
+    }
+
+
+    //
+    //GtkWidget *hbox = gtk_list_item_get_child(listitem);
+    //GtkWidget *lb_app = gtk_widget_get_first_child(GTK_WIDGET(hbox));
+    //GtkWidget *lb_body = gtk_widget_get_next_sibling(GTK_WIDGET(lb_app));
+    //GtkWidget *lb_summary = gtk_widget_get_next_sibling(GTK_WIDGET(lb_body));
 
     gtk_label_set_text(GTK_LABEL(lb_app), NOTIFICATION_ITEM(item)->app);
     gtk_label_set_text(GTK_LABEL(lb_body), NOTIFICATION_ITEM(item)->body);
@@ -173,27 +218,6 @@ GObject* notifications_gui_init()
     g_signal_connect(factory, "setup", G_CALLBACK(setup_cb), NULL);
     g_signal_connect(factory, "bind",  G_CALLBACK(bind_cb), NULL);
 
-    /*
-gulong
-g_signal_handler_find (
-  GObject* instance,
-  GSignalMatchType mask,
-  guint signal_id,
-  GQuark detail,
-  GClosure* closure,
-  gpointer func,
-  gpointer data
-)
-
-gboolean
-g_signal_parse_name (
-  const gchar* detailed_signal,
-  GType itype,
-  guint* signal_id_p,
-  GQuark* detail_p,
-  gboolean force_detail_quark
-)
-*/
     g_signal_connect(w_search_entry, "stop-search",  G_CALLBACK(on_stop_search), NULL);
 
     // find signal id for type/signal
