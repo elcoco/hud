@@ -6,8 +6,10 @@
 #include <stdarg.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 
 #include "json.h"
+#include "utils.h"
 
 #define NOTIFY_AMOUNT 20
 #define NOTIFY_BIN_PATH "/usr/bin/dunstctl"

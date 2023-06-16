@@ -77,7 +77,6 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
 
     char buf[128] = "";
     sprintf(buf, "@ %d", SEARCH_ITEM(item)->lineno);
-    printf("lineno: %s,  %d\n", buf, SEARCH_ITEM(item)->lineno);
     gtk_label_set_text(GTK_LABEL(lineno_lb), buf);
 }
 

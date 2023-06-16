@@ -42,17 +42,24 @@ int rg_request(const char *search, struct RGLine *l)
                                              RIPGREP_PWD);
 
     FILE *pipe = popen(cmd, "r");
-
     printf("exec: %s\n", cmd);
-    while (!feof(pipe)) {
-        char buf[RG_MAXBUF] = "";
 
-        // check end of data
-        if (fgets(buf, sizeof(buf), pipe) == NULL)
+    while (!feof(pipe)) {
+        char *buf = NULL;
+        get_line_from_pipe(pipe, &buf);
+
+        // nothing read, eof
+        if (buf == NULL)
             break;
         
+        // delete '\n'
         buf[strlen(buf)-1] = '\0';
+
+        //printf("---------------------------------------\n");
+        //printf("START_READ>>>%s<<<END_READ\n", buf);
+        //printf("---------------------------------------\n");
         JSONObject* rn = json_load(buf);
+        free(buf);
 
         //json_print(rn, 0);
 
@@ -80,6 +87,10 @@ int rg_request(const char *search, struct RGLine *l)
         // connect next in linked list
         if (nfound != 0)
             tmp = rgline_init(tmp);
+
+        assert(npath->value != NULL);
+        assert(ntext->value != NULL);
+        assert(lineno->value != NULL);
 
         tmp->path = strdup(npath->value);
         tmp->text = strdup(ntext->value);

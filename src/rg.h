@@ -5,8 +5,10 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+#include <assert.h>
 
 #include "json.h"
+#include "utils.h"
 
 
 #define RIPGREP_BIN_PATH "/usr/bin/rg"

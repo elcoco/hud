@@ -16,7 +16,7 @@ void debug(char* fmt, ...)
 }
 
 /* create string of n amount of spaces */
-void get_spaces(char *buf, uint8_t spaces) {
+static void get_spaces(char *buf, uint8_t spaces) {
     uint8_t i;
     for (i=0 ; i<spaces ; i++) {
         buf[i] = ' ';
@@ -25,7 +25,7 @@ void get_spaces(char *buf, uint8_t spaces) {
 }
 
 /* print context for error message */
-void print_error(Position *pos, uint32_t amount) {
+static void print_error(Position *pos, uint32_t amount) {
     char lctext[2*LINES_CONTEXT];       // buffer for string left from current char
     char rctext[2*LINES_CONTEXT];       // buffer for string right from current char
 
@@ -172,48 +172,6 @@ char* pos_next(Position *pos)
     return pos->c;
 }
 
-char fforward(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf)
-{
-    /* fast forward until a char from search_lst is found
-     * Save all chars in buf until a char from search_lst is found
-     * Only save in buf when a char is found in expected_lst
-     * Error is a char from unwanted_lst is found
-     *
-     * If buf == NULL,          don't save chars
-     * If expected_lst == NULL, allow all characters
-     * If unwanted_lst == NULL, allow all characters
-     */
-    // TODO char can not be -1
-
-    // save skipped chars that are on expected_lst in buffer
-    char* ptr = buf;
-
-    // don't return these chars with buffer
-    ignore_lst = (ignore_lst) ? ignore_lst : "";
-    unwanted_lst = (unwanted_lst) ? unwanted_lst : "";
-
-    while (!strchr(search_lst, *(pos->c))) {
-        if (strchr(unwanted_lst, *(pos->c)))
-            return -1;
-
-        if (expected_lst != NULL) {
-            if (!strchr(expected_lst, *(pos->c)))
-                return -1;
-        }
-        if (buf != NULL && !strchr(ignore_lst, *(pos->c)))
-            *ptr++ = *(pos->c);
-
-        pos_next(pos);
-    }
-    // terminate string
-    if (ptr != NULL)
-        *ptr = '\0';
-
-    char ret = *(pos->c);
-
-    return ret;
-}
-
 char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf)
 {
     /* fast forward until a char from search_lst is found
@@ -265,6 +223,92 @@ char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, 
 
     //if (buf)
     //    printf("!!!!!!!!!!: >%s<\n", buf);
+    return ret;
+}
+
+static size_t str_alloc(char **buf, size_t old_size, size_t wanted_size, size_t chunk_size)
+{
+    /* Grow string one chunk_size at a time if old_size < wanted_size
+     * If *buf == NULL, do an initial initialization
+     */
+    size_t new_size = ((wanted_size / chunk_size) +1) * chunk_size;
+
+    // on first call with uninitialized char do a malloc
+    if (*buf == NULL) {
+        printf("json init -> %ld\n", new_size);
+        *buf = malloc(new_size);
+        (*buf)[0] = '\0';
+        return new_size;
+    }
+
+    if (old_size < wanted_size) {
+        printf("json grow %ld -> %ld\n", old_size, new_size);
+        *buf = realloc(*buf, new_size);
+        return new_size;
+    }
+
+    return old_size;
+}
+
+char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char** buf)
+{
+    /* fast forward until a char from search_lst is found
+     * Save all chars in buf until a char from search_lst is found
+     * Only save in buf when a char is found in expected_lst
+     * Error is a char from unwanted_lst is found
+     *
+     * If buf == NULL,          don't save chars
+     * If expected_lst == NULL, allow all characters
+     * If unwanted_lst == NULL, allow all characters
+     */
+    // TODO char can not be -1
+
+    // save skipped chars that are on expected_lst in buffer
+    int grow_amount = 256;
+    int buf_size = 0;
+    int buf_pos = 0;
+
+    if (buf != NULL) {
+        buf_size = grow_amount;
+        *buf = malloc(buf_size);
+    }
+
+    // don't return these chars with buffer
+    ignore_lst = (ignore_lst) ? ignore_lst : "";
+    unwanted_lst = (unwanted_lst) ? unwanted_lst : "";
+
+    while (1) {
+        if (buf_pos >= buf_size) {
+            buf_size += grow_amount;
+            *buf = realloc(*buf, buf_size+1);
+        }
+
+        if (strchr(search_lst, *(pos->c))) {
+            // check if previous character whas a backslash which indicates escaped
+            if (pos->npos > 0 && *(pos->c-1) == '\\') {
+                // continue loop
+            }
+            else
+                break;
+        }
+        if (strchr(unwanted_lst, *(pos->c)))
+            return -1;
+
+        if (expected_lst != NULL) {
+            if (!strchr(expected_lst, *(pos->c)))
+                return -1;
+        }
+        if (buf != NULL && !strchr(ignore_lst, *(pos->c)))
+            (*buf)[buf_pos] = *(pos->c);
+
+        pos_next(pos);
+        buf_pos++;
+    }
+    // terminate string
+    if (buf != NULL)
+        (*buf)[buf_pos] = '\0';
+
+    char ret = *(pos->c);
     return ret;
 }
 
@@ -365,7 +409,8 @@ JSONStatus json_parse_bool(JSONObject* jo, Position* pos)
 JSONStatus json_parse_key(JSONObject* jo, Position* pos)
 {
     /* Parse key part of an object */
-    char key[MAX_BUF] = {'\0'};
+    //char key[MAX_BUF] = {'\0'};
+    char *key = NULL;
     char c;
 
     // skip to start of key
@@ -382,11 +427,12 @@ JSONStatus json_parse_key(JSONObject* jo, Position* pos)
     pos_next(pos);
 
     // read key
-    if ((c = fforward_skip_escaped(pos, "\"'", NULL, NULL, "\n", key)) < 0) {
+    if ((c = fforward_skip_escaped_grow(pos, "\"'", NULL, NULL, "\n", &(jo->key))) < 0) {
         printf("Error while parsing key\n");
         print_error(pos, LINES_CONTEXT);
         return PARSE_ERROR;
     }
+    //jo->key = key;
     if (c == '}') {
         pos_next(pos);
         return END_OF_OBJECT;
@@ -405,13 +451,14 @@ JSONStatus json_parse_key(JSONObject* jo, Position* pos)
     // skip over colon
     pos_next(pos);
 
-    jo->key = strdup(key);
+    //printf("json read key: %s\n", key);
     return STATUS_SUCCESS;
 }
 
 JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
 {
-    char tmp[MAX_BUF] = {'\0'};
+    //char tmp[MAX_BUF] = {'\0'};
+    char *tmp = NULL;
     char c;
 
     jo->dtype = JSON_STRING;
@@ -419,14 +466,14 @@ JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
 
     // look for closing quotes, quote_chr tells us if it is " or ' that we're looking for
     if (quote_chr == '\'') {
-        if ((c = fforward_skip_escaped(pos, "'\n", NULL, NULL, "\n", tmp)) < 0) {
+        if ((c = fforward_skip_escaped_grow(pos, "'\n", NULL, NULL, "\n", (char**)&(jo->value))) < 0) {
             printf("Error while parsing string, Failed to find closing quotes\n");
             print_error(pos, LINES_CONTEXT);
             return PARSE_ERROR;
         }
     }
     else if (quote_chr == '"') {
-        if ((c = fforward_skip_escaped(pos, "\"\n", NULL, NULL, "\n", tmp)) < 0) {
+        if ((c = fforward_skip_escaped_grow(pos, "\"\n", NULL, NULL, "\n", (char**)&(jo->value))) < 0) {
             printf("Error while parsing string, Failed to find closing quotes\n");
             print_error(pos, LINES_CONTEXT);
             return PARSE_ERROR;
@@ -436,12 +483,14 @@ JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
         return PARSE_ERROR;
     }
 
+    //printf("json read string: %s\n", tmp);
+
     //if ((c = fforward_skip_escaped(pos, "\"'\n", NULL, NULL, "\n", tmp)) < 0) {
     //    printf("Error while parsing string, Failed to find closing quotes\n");
     //    print_error(pos, LINES_CONTEXT);
     //    return PARSE_ERROR;
     //}
-    jo->value = strdup(tmp);
+    //jo->value = tmp;
 
 
     // step over " char
