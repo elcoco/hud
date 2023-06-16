@@ -226,30 +226,6 @@ char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, 
     return ret;
 }
 
-static size_t str_alloc(char **buf, size_t old_size, size_t wanted_size, size_t chunk_size)
-{
-    /* Grow string one chunk_size at a time if old_size < wanted_size
-     * If *buf == NULL, do an initial initialization
-     */
-    size_t new_size = ((wanted_size / chunk_size) +1) * chunk_size;
-
-    // on first call with uninitialized char do a malloc
-    if (*buf == NULL) {
-        printf("json init -> %ld\n", new_size);
-        *buf = malloc(new_size);
-        (*buf)[0] = '\0';
-        return new_size;
-    }
-
-    if (old_size < wanted_size) {
-        printf("json grow %ld -> %ld\n", old_size, new_size);
-        *buf = realloc(*buf, new_size);
-        return new_size;
-    }
-
-    return old_size;
-}
-
 int count_backslashes(Position *pos)
 {
     int count = 0;
@@ -418,8 +394,6 @@ JSONStatus json_parse_bool(JSONObject* jo, Position* pos)
 JSONStatus json_parse_key(JSONObject* jo, Position* pos)
 {
     /* Parse key part of an object */
-    //char key[MAX_BUF] = {'\0'};
-    char *key = NULL;
     char c;
 
     // skip to start of key
@@ -466,8 +440,6 @@ JSONStatus json_parse_key(JSONObject* jo, Position* pos)
 
 JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
 {
-    //char tmp[MAX_BUF] = {'\0'};
-    char *tmp = NULL;
     char c;
 
     jo->dtype = JSON_STRING;

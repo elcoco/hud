@@ -26,7 +26,8 @@ struct NotifyItem {
     struct NotifyItem *next;
 };
 
-int notify_req(int amount, struct NotifyItem *ni);
+//int notify_req(int amount, struct NotifyItem *ni);
+struct NotifyItem* notify_req(int amount);
 void notify_test(int amount);
 struct NotifyItem* notify_init(struct NotifyItem *prev);
 

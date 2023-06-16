@@ -58,7 +58,7 @@ time_t get_uptime()
     return uptime;
 }
 
-int notify_req(int amount, struct NotifyItem *ni)
+struct NotifyItem* notify_req(int amount)
 {
     /* Get amount of notifications from dunstctl
      * If amount == -1, return all
@@ -78,17 +78,15 @@ int notify_req(int amount, struct NotifyItem *ni)
     char *buf = NULL;
     get_all_from_pipe(pipe, &buf);
         
-    printf(">>%s<<\n", buf);
     //buf[strlen(buf)-1] = '\0';
     //printf(">>%s<<\n", buf);
     JSONObject* rn = json_load(buf);
 
     if (rn == NULL || !rn->is_object) {
         fprintf(stderr, "Failed to get JSON from dunst");
-        return -1;
+        return NULL;
     }
-    printf("here!\n");
-    json_print(rn, 0);
+    //json_print(rn, 0);
 
     // TODO path with mixed keys/array indices should be possible
 
@@ -99,10 +97,13 @@ int notify_req(int amount, struct NotifyItem *ni)
     struct JSONObject *msgs = n1->children[0];
     struct JSONObject *msg = msgs->value;
 
-    struct NotifyItem *ni_tmp = ni;
+    //struct NotifyItem *ni_tmp = ni;
+    struct NotifyItem *ni_tmp = NULL;
+    struct NotifyItem **ni_first = &ni_tmp;
 
     while (msg != NULL) {
         //json_print(msg, 0);
+        ni_tmp = notify_init(ni_tmp);
 
         struct JSONObject *nbody = json_get_path(msg, "body/data");
         struct JSONObject *nmsg  = json_get_path(msg, "message/data");
@@ -110,6 +111,7 @@ int notify_req(int amount, struct NotifyItem *ni)
         struct JSONObject *napp  = json_get_path(msg, "app/data");
         struct JSONObject *nts   = json_get_path(msg, "timestamp/data");
 
+        
         ni_tmp->body    = strdup(nbody->value);
         ni_tmp->msg     = strdup(nmsg->value);
         ni_tmp->summary = strdup(nsum->value);
@@ -118,19 +120,7 @@ int notify_req(int amount, struct NotifyItem *ni)
         // dunst timestamp is microseconds (?) since boot time
         ni_tmp->ts = time(NULL) - (get_uptime() - (time_t)json_get_number(nts)/1000000);
 
-        ni_tmp = notify_init(ni_tmp);
         msg = msg->next;
     }
-
-    
-    return 0;
-
-}
-
-void notify_test(int amount)
-{
-    struct NotifyItem *ni = notify_init(NULL);
-
-    if (notify_req(amount, ni) > 0)
-        notify_print_all(ni);
+    return *ni_first;
 }

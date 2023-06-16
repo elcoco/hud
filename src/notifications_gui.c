@@ -2,9 +2,6 @@
 
 //https://blog.gtk.org/2020/09/05/a-primer-on-gtklistview/
 // to bind do window use: gtk_window_set_display (GTK_WINDOW (window),
-//
-//
-
 
 struct _NotificationItemClass {
     GObjectClass parent_class;
@@ -25,9 +22,9 @@ static NotificationItem *notification_item_new(const char *app, const char *body
 
     item = g_object_new(NOTIFICATION_TYPE_ITEM, NULL);
 
-    item->app = app;
-    item->body = body;
-    item->summary = summary;
+    item->app = strdup(app);
+    item->body = strdup(body);
+    item->summary = strdup(summary);
     item->ts = ts;
 
     return item;
@@ -38,8 +35,8 @@ static GListModel *notification_model_new(void)
     /* fill model with some fancy data */
 
     // get data
-    struct NotifyItem *ni = notify_init(NULL);
-    notify_req(100, ni);
+    //struct NotifyItem *ni = notify_init(NULL);
+    struct NotifyItem *ni = notify_req(100);
     
     GListStore *store = g_list_store_new(G_TYPE_OBJECT);
 
@@ -49,6 +46,7 @@ static GListModel *notification_model_new(void)
         g_list_store_append(store, item);
         ni = ni->next;
     }
+    // TODO destroy ni
     return G_LIST_MODEL(store);
 }
 
@@ -81,6 +79,26 @@ static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoi
     //gtk_box_append(GTK_BOX(hbox), lb_summary);
 }
 
+static GIcon* find_icon(const char *app_name)
+{
+    // lookup icon
+    GList *apps = g_app_info_get_all();
+    GList *app = apps;
+
+    GIcon *match = NULL;
+    while (app != NULL) {
+        GAppInfo *app_info = app->data;
+        const char *name = g_app_info_get_name(app_info);
+
+        if (strcmp(name, app_name) == 0) {
+            match = g_app_info_get_icon(app_info);
+            break;
+        }
+        app = app->next;
+    }
+    return match;
+}
+
 static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
 {
     /* Bind model items to view items.
@@ -89,9 +107,6 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
 
     // custom model item that contains the data
     NotificationItem *item = gtk_list_item_get_item(listitem);
-
-     if (item->app == NULL)
-         return;
 
     GtkWidget *main_box = gtk_list_item_get_child(listitem);
     GtkWidget *header_box = gtk_widget_get_first_child(GTK_WIDGET(main_box));
@@ -103,35 +118,11 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     GtkWidget *lb_summary = gtk_widget_get_next_sibling(GTK_WIDGET(header_box));
     GtkWidget *lb_body = gtk_widget_get_next_sibling(GTK_WIDGET(lb_summary));
 
-
-    // lookup icon
-    GListStore *store = g_list_store_new(G_TYPE_OBJECT);
-    GList *apps = g_app_info_get_all();
-    GList *app = apps;
-
-    GIcon *match = NULL;
-    while (app != NULL) {
-        GAppInfo *app_info = app->data;
-        const char *name = g_app_info_get_name(app_info);
-
-        if (strcmp(name, NOTIFICATION_ITEM(item)->app) == 0) {
-            match = g_app_info_get_icon(app_info);
-            break;
-        }
-        app = app->next;
-    }
-
-    if (match == NULL)
+    GIcon *icon = find_icon(NOTIFICATION_ITEM(item)->app);
+    if (icon == NULL)
         gtk_image_set_from_resource(GTK_IMAGE(image), NOTIFICATION_RESOURCE_DEFAULT_ICON);
     else
-        gtk_image_set_from_gicon(GTK_IMAGE(image), match);
-
-
-    //
-    //GtkWidget *hbox = gtk_list_item_get_child(listitem);
-    //GtkWidget *lb_app = gtk_widget_get_first_child(GTK_WIDGET(hbox));
-    //GtkWidget *lb_body = gtk_widget_get_next_sibling(GTK_WIDGET(lb_app));
-    //GtkWidget *lb_summary = gtk_widget_get_next_sibling(GTK_WIDGET(lb_body));
+        gtk_image_set_from_gicon(GTK_IMAGE(image), icon);
 
     gtk_label_set_text(GTK_LABEL(lb_app), NOTIFICATION_ITEM(item)->app);
     gtk_label_set_text(GTK_LABEL(lb_body), NOTIFICATION_ITEM(item)->body);
@@ -150,10 +141,6 @@ gboolean custom_filter_cb(void* fitem, gpointer user_data)
 
     if (strlen(inp_txt) == 0)
         return 1;
-
-    // TODO quick fix for bug, for some reason there is a NULL at end of model, remove after fix
-     if (item->app == NULL)
-         return 0;
 
      // do the actual filtering
     if (find_substr(item->app, inp_txt) || find_substr(item->body, inp_txt) || find_substr(item->summary, inp_txt))
