@@ -165,8 +165,8 @@ char* pos_next(Position *pos)
         // check if character is printable
         if (*(pos->c) >= 32 && *(pos->c) <= 126)
             debug("EOL @ c=%c, pos: %d, cxr: %dx%d\n", *(pos->c), pos->npos, pos->cols, pos->rows);
-        else
-            debug("EOL @ (unprintable), pos: %d, cxr: %dx%d\n", pos->npos, pos->cols, pos->rows);
+        //else
+        //    debug("EOL @ (unprintable), pos: %d, cxr: %dx%d\n", pos->npos, pos->cols, pos->rows);
         return NULL;
     }
     return pos->c;
@@ -250,6 +250,16 @@ static size_t str_alloc(char **buf, size_t old_size, size_t wanted_size, size_t 
     return old_size;
 }
 
+int count_backslashes(Position *pos)
+{
+    int count = 0;
+
+    while (*(pos->c - (count+1)) == '\\' && pos->npos >= count)
+        count++;
+
+    return count;
+}
+
 char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char** buf)
 {
     /* fast forward until a char from search_lst is found
@@ -284,11 +294,10 @@ char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_
         }
 
         if (strchr(search_lst, *(pos->c))) {
-            // check if previous character whas a backslash which indicates escaped
-            if (pos->npos > 0 && *(pos->c-1) == '\\') {
-                // continue loop
-            }
-            else
+            // if a character is found that is on the search list we have to check
+            // if the character is escaped. So we need to look back to check for
+            // an uneven amount of backslashes
+            if (count_backslashes(pos) % 2 == 0)
                 break;
         }
         if (strchr(unwanted_lst, *(pos->c)))

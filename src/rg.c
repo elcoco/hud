@@ -27,7 +27,7 @@ void rgline_print_all(struct RGLine *l)
     }
 }
 
-int rg_request(const char *search, struct RGLine *l)
+int rg_request(const char *search, struct RGLine *l, int amount)
 {
     /* Run Ripgrep and return hits as linked list by argument.
      * Function returns amount of hits or error if <0
@@ -45,6 +45,9 @@ int rg_request(const char *search, struct RGLine *l)
     printf("exec: %s\n", cmd);
 
     while (!feof(pipe)) {
+        if (nfound == amount)
+            break;
+
         char *buf = NULL;
         get_line_from_pipe(pipe, &buf);
 
@@ -55,13 +58,8 @@ int rg_request(const char *search, struct RGLine *l)
         // delete '\n'
         buf[strlen(buf)-1] = '\0';
 
-        //printf("---------------------------------------\n");
-        //printf("START_READ>>>%s<<<END_READ\n", buf);
-        //printf("---------------------------------------\n");
         JSONObject* rn = json_load(buf);
         free(buf);
-
-        //json_print(rn, 0);
 
         if (rn == NULL) {
             fprintf(stderr, "Error in json\n");
@@ -112,6 +110,6 @@ void rg_test(char *search)
 {
     struct RGLine *l = rgline_init(NULL);
 
-    if (rg_request(search, l) > 0)
+    if (rg_request(search, l, 100) > 0)
         rgline_print_all(l);
 }

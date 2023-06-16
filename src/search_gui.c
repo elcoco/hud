@@ -80,8 +80,6 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     gtk_label_set_text(GTK_LABEL(lineno_lb), buf);
 }
 
-
-
 static void search_entry_changed_cb(void* self, gpointer user_data)
 {
     /* Is called when search entry is changed and notifies users of filter to update the models */
@@ -91,8 +89,11 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
 
     const char *inp_txt = gtk_editable_get_text(GTK_EDITABLE(self));
 
+    if (strlen(inp_txt) == 0)
+        return;
+
     struct RGLine *l = rgline_init(NULL);
-    if (rg_request(inp_txt, l) < 0) {
+    if (rg_request(inp_txt, l, RG_AMOUNT_RESULTS) < 0) {
         fprintf(stderr, "Error while calling ripgrep\n");
         return;
     }

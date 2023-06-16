@@ -10,6 +10,9 @@
 #include "rg.h"
 #include "utils.h"
 
+#define RG_AMOUNT_RESULTS 1000
+#define SEARCH_UI_PATH "/resources/ui/gui.ui"
+#define SEARCH_ITEM_UI_PATH "/resources/ui/gui.ui"
 
 #define SEARCH_TYPE_ITEM (search_item_get_type ())
 G_DECLARE_FINAL_TYPE(SearchItem, search_item, SEARCH, ITEM, GObject)
@@ -20,8 +23,6 @@ struct _SearchItem {
     int lineno;
 };
 
-#define SEARCH_UI_PATH "/resources/ui/gui.ui"
-#define SEARCH_ITEM_UI_PATH "/resources/ui/gui.ui"
 
 GObject* search_gui_init();
 
