@@ -1,4 +1,5 @@
 #include "apps_gui.h"
+#include "gdk/gdkkeysyms.h"
 
 struct _AppItemClass {
     GObjectClass parent_class;
@@ -124,7 +125,7 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
     gtk_filter_changed(filter, GTK_FILTER_CHANGE_DIFFERENT);
 }
 
-static void grid_view_run_app(GtkGridView *self, int pos, gpointer user_data)
+static void grid_view_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
 {
     GListModel *model = G_LIST_MODEL(user_data);
     AppItem *item = g_list_model_get_item(G_LIST_MODEL(model), pos);
@@ -146,6 +147,34 @@ static int custom_sorter_cb(const void *li, const void *ri, gpointer user_data)
     return strcmp(lname, rname);
 }
 
+static gboolean event_key_pressed_cb(GtkEventControllerKey  *controller,
+                                     guint           keyval,
+                                     guint           keycode,
+                                     GdkModifierType state,
+                                     GtkWidget       *widget)
+{
+    /* Focus search entry on buttonpress and enter character */
+    printf("%d  %d  %d\n", GDK_KEY_A, keyval, GDK_KEY_z);
+
+    char text[256] = "";
+
+    if (keyval >= GDK_KEY_A && keyval <= GDK_KEY_z ) {
+        sprintf(text, "%s%c", gtk_editable_get_text(GTK_EDITABLE(widget)), keyval);
+        gtk_widget_grab_focus(widget);
+        gtk_editable_set_text(GTK_EDITABLE(widget), text);
+        gtk_editable_set_position(GTK_EDITABLE(widget), -1);
+    }
+    if (keyval == GDK_KEY_BackSpace) {
+        sprintf(text, "%s", gtk_editable_get_text(GTK_EDITABLE(widget)));
+        if (strlen(text) > 0)
+            text[strlen(text)-2] = '\0';
+        gtk_widget_grab_focus(widget);
+        gtk_editable_set_text(GTK_EDITABLE(widget), text);
+        gtk_editable_set_position(GTK_EDITABLE(widget), -1);
+            
+    }
+    return FALSE;
+}
 
 GObject* apps_gui_init()
 {
@@ -170,12 +199,18 @@ GObject* apps_gui_init()
 
     // connect search input via callback to update model on change
     g_signal_connect(G_OBJECT(w_se_apps), "search-changed", G_CALLBACK(search_entry_changed_cb), filter);
-    g_signal_connect(G_OBJECT(w_grid_view), "activate", G_CALLBACK(grid_view_run_app), no_sel);
+    g_signal_connect(G_OBJECT(w_grid_view), "activate", G_CALLBACK(grid_view_run_app_cb), no_sel);
+
 
     // factory creates widgets to connect model to view
     GtkListItemFactory *factory = gtk_signal_list_item_factory_new();
     g_signal_connect(factory, "setup", G_CALLBACK(setup_cb), NULL);
     g_signal_connect(factory, "bind",  G_CALLBACK(bind_cb), NULL);
+
+    // auto focus search on keypress
+    GtkEventController *key_controller = gtk_event_controller_key_new();
+    gtk_widget_add_controller(GTK_WIDGET (w_scroll_window), key_controller);
+    g_signal_connect(G_OBJECT(key_controller), "key-pressed", G_CALLBACK(event_key_pressed_cb), GTK_WIDGET(w_se_apps));
 
     gtk_grid_view_set_model(GTK_GRID_VIEW(w_grid_view), GTK_SELECTION_MODEL(no_sel));
     gtk_grid_view_set_factory(GTK_GRID_VIEW(w_grid_view), GTK_LIST_ITEM_FACTORY(factory));

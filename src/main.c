@@ -85,6 +85,16 @@ static gboolean focus_tab_next_cb(GtkWidget *widget, GVariant *args, gpointer da
     return 1;
 }
 
+static gboolean event_key_pressed_cb(GtkWidget       *drawing_area,
+                                     guint           keyval,
+                                     guint           keycode,
+                                     GdkModifierType state,
+                                     gpointer        user_data)
+{
+    printf("keypress\n");
+    return FALSE;
+}
+
 static void app_activate(GtkApplication *app)
 {
     //GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
@@ -144,6 +154,8 @@ static void app_activate(GtkApplication *app)
     gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
                                          gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Tab, GDK_SHIFT_MASK | GDK_CONTROL_MASK),
                                                           gtk_callback_action_new(focus_tab_prev_cb, names, NULL)));
+
+
 
     gtk_window_present(GTK_WINDOW(win));
     g_object_unref(builder);
