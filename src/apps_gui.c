@@ -105,7 +105,15 @@ static int find_substr(const char *haystack, const char *needle)
 static gboolean custom_filter_cb(void* fitem, gpointer user_data)
 {
     AppItem *item = APP_ITEM(fitem);
+
     GtkSearchEntry *w_search_entry = GTK_SEARCH_ENTRY(user_data);
+    //GList *args = user_data;
+    //GtkSearchEntry *w_search_entry = GTK_SEARCH_ENTRY(g_list_nth(args, 1)->data);
+    //GtkSelectionModel *model = GTK_SELECTION_MODEL(g_list_nth(args, 0)->data);
+
+    //gtk_selection_model_set_selection(GTK_SELECTION_MODEL(model), 0, 0);
+    //GtkSearchEntry *w_search_entry = GTK_SEARCH_ENTRY(user_data);
+
     const char *inp_txt = gtk_editable_get_text(GTK_EDITABLE(w_search_entry));
 
     if (strlen(inp_txt) == 0)
@@ -122,17 +130,43 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
 {
     /* Is called when search entry is changed and notifies users of filter to update the models */
     GtkFilter *filter = GTK_FILTER(user_data);
+
+    //GtkFilter *filter = GTK_FILTER(user_data);
     gtk_filter_changed(filter, GTK_FILTER_CHANGE_DIFFERENT);
 }
 
 static void grid_view_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
 {
     GListModel *model = G_LIST_MODEL(user_data);
-    AppItem *item = g_list_model_get_item(G_LIST_MODEL(model), pos);
+    AppItem *item = g_list_model_get_item(model, pos);
     GAppInfo *app_info = item->app_info;
 
     // something something GError
     g_app_info_launch(app_info, NULL, NULL, NULL);
+}
+
+static void se_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
+{
+    /* Run first app when enter on search entry */
+    GListModel *model = G_LIST_MODEL(user_data);
+
+    int n = g_list_model_get_n_items(G_LIST_MODEL(model));
+
+    printf("amount: %d\n",n);
+    printf("pos:    %d\n",pos);
+
+    // if no items in selection
+    if (n == 0) {
+        printf("no items\n");
+        return;
+    }
+
+    AppItem *item = g_list_model_get_item(model, 0);
+    GAppInfo *app_info = item->app_info;
+
+    // something something GError
+    g_app_info_launch(app_info, NULL, NULL, NULL);
+
 }
 
 static int custom_sorter_cb(const void *li, const void *ri, gpointer user_data)
@@ -173,6 +207,7 @@ static gboolean event_key_pressed_cb(GtkEventControllerKey  *controller,
         gtk_editable_set_position(GTK_EDITABLE(widget), -1);
             
     }
+
     return FALSE;
 }
 
@@ -188,6 +223,11 @@ GObject* apps_gui_init()
     GObject *w_se_apps       = gtk_builder_get_object(builder, "apps_se");
     GObject *w_box_apps      = gtk_builder_get_object(builder, "apps_box");
 
+    //GtkNoSelection *no_sel;
+    //GList *args = g_list_alloc();
+    //args = g_list_append(args, w_se_apps);
+    //args = g_list_append(args, no_sel);
+
     // custom filter model that filters through all fields
     GtkFilter *filter = GTK_FILTER(gtk_custom_filter_new(custom_filter_cb, w_se_apps, NULL));
     GtkFilterListModel *filter_model = gtk_filter_list_model_new(G_LIST_MODEL(app_model), filter);
@@ -197,9 +237,11 @@ GObject* apps_gui_init()
 
     GtkNoSelection *no_sel = gtk_no_selection_new(G_LIST_MODEL(sort_model));
 
+
     // connect search input via callback to update model on change
     g_signal_connect(G_OBJECT(w_se_apps), "search-changed", G_CALLBACK(search_entry_changed_cb), filter);
     g_signal_connect(G_OBJECT(w_grid_view), "activate", G_CALLBACK(grid_view_run_app_cb), no_sel);
+    g_signal_connect(G_OBJECT(w_se_apps), "activate", G_CALLBACK(se_run_app_cb), no_sel);
 
 
     // factory creates widgets to connect model to view
@@ -212,8 +254,11 @@ GObject* apps_gui_init()
     gtk_widget_add_controller(GTK_WIDGET (w_scroll_window), key_controller);
     g_signal_connect(G_OBJECT(key_controller), "key-pressed", G_CALLBACK(event_key_pressed_cb), GTK_WIDGET(w_se_apps));
 
+    //gtk_selection_model_select_item(
     gtk_grid_view_set_model(GTK_GRID_VIEW(w_grid_view), GTK_SELECTION_MODEL(no_sel));
     gtk_grid_view_set_factory(GTK_GRID_VIEW(w_grid_view), GTK_LIST_ITEM_FACTORY(factory));
+
+    //gtk_selection_model_select_item(GTK_SELECTION_MODEL(no_sel), 0, 0);
 
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(w_scroll_window), GTK_WIDGET(w_grid_view));
 

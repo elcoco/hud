@@ -129,7 +129,7 @@ static void app_activate(GtkApplication *app)
     gtk_stack_page_set_title(w_stackpage_search, "Search");
     gtk_stack_page_set_name(w_stackpage_search, "search");
 
-    gtk_stack_set_visible_child_name(GTK_STACK(w_stack), "search");
+    //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), "search");
 
     // setup keyboard shortcuts
     GtkEventController *controller = gtk_shortcut_controller_new();
