@@ -36,7 +36,7 @@ int rg_request(const char *search, struct RGLine *l, int amount)
     struct RGLine *tmp = l;
 
     char cmd[RG_MAXBUF] = "";
-    sprintf(cmd, "%s %s %s %s 2> /dev/null", RIPGREP_BIN_PATH, 
+    sprintf(cmd, "%s %s \"%s\" %s 2> /dev/null", RIPGREP_BIN_PATH, 
                                              RIPGREP_ARGS, 
                                              search,
                                              RIPGREP_PWD);
@@ -66,22 +66,25 @@ int rg_request(const char *search, struct RGLine *l, int amount)
             goto on_err;
         }
 
-        // filter by only checking match type
+        // filter by only checking match type results
         struct JSONObject *ntype = json_get_path(rn, "type");
 
-        if (ntype == NULL)
+        if (ntype == NULL || strcmp(ntype->value, "match") != 0) {
+            json_obj_destroy(rn);
             continue;
-
-        if (strcmp(ntype->value, "match") != 0)
-            continue;
+        }
 
         struct JSONObject *npath  = json_get_path(rn, "data/path/text");
         struct JSONObject *ntext  = json_get_path(rn, "data/lines/text");
         struct JSONObject *lineno = json_get_path(rn, "data/line_number");
 
-        if (npath == NULL || ntext == NULL || lineno == NULL)
+        if (npath == NULL || ntext == NULL || lineno == NULL) {
+            json_obj_destroy(rn);
             continue;
+        }
 
+        //printf(">>%s %s %f<<\n", (char*)(npath->value), (char*)(ntext->value), json_get_number(lineno));
+        
         // connect next in linked list
         if (nfound != 0)
             tmp = rgline_init(tmp);
@@ -89,6 +92,7 @@ int rg_request(const char *search, struct RGLine *l, int amount)
         assert(npath->value != NULL);
         assert(ntext->value != NULL);
         assert(lineno->value != NULL);
+
 
         tmp->path = strdup(npath->value);
         tmp->text = strdup(ntext->value);

@@ -104,3 +104,38 @@ int get_all_from_pipe(FILE* pipe, char **buf)
     fclose(pipe);
     return nread;
 }
+
+int ts_to_time_elapsed(time_t t, char *buf)
+{
+    time_t t_diff = time(NULL) - t;
+    if (t_diff >= 60 * 60 * 24)
+        sprintf(buf, "%ld days ago", t_diff/(60*60*24)); 
+    else if (t_diff >= 60 * 60)
+        sprintf(buf, "%ld hours ago", t_diff/(60*60)); 
+    else if (t_diff >= 60)
+        sprintf(buf, "%ld minutes ago", t_diff/60); 
+    else
+        sprintf(buf, "%ld seconds ago", t_diff); 
+    return 0;
+}
+
+
+GAppInfo* find_appinfo(const char *app_name)
+{
+    // lookup icon
+    GList *apps = g_app_info_get_all();
+    GList *app = apps;
+    GAppInfo *match = NULL;
+
+    while (app != NULL) {
+        GAppInfo *app_info = app->data;
+        const char *name = g_app_info_get_name(app_info);
+
+        if (strcmp(name, app_name) == 0) {
+            match = app_info;
+            break;
+        }
+        app = app->next;
+    }
+    return match;
+}

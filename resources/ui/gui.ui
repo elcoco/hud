@@ -154,7 +154,9 @@
       <object class="GtkLabel" id="search_item_text_lb">
         <property name="halign">start</property>
         <property name="label">text</property>
+        <property name="selectable">True</property>
         <property name="wrap">True</property>
+        <property name="wrap-mode">word-char</property>
       </object>
     </child>
   </object>

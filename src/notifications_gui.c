@@ -26,6 +26,7 @@ static NotificationItem *notification_item_new(const char *app, const char *body
     item->body = strdup(body);
     item->summary = strdup(summary);
     item->ts = ts;
+    item->app_info = find_appinfo(app);
 
     return item;
 }
@@ -50,53 +51,11 @@ static GListModel *notification_model_new(void)
     return G_LIST_MODEL(store);
 }
 
-
 static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
 {
     GtkBuilder *builder = gtk_builder_new_from_resource(NOTIFICATION_UI_PATH);
-
     GObject *w_box = gtk_builder_get_object(builder, "notification_box");
-    GObject *w_icon = gtk_builder_get_object(builder, "notification_icon");
-    GObject *w_app_lb = gtk_builder_get_object(builder, "notification_app_lb");
-    GObject *w_time_lb = gtk_builder_get_object(builder, "notification_time_lb");
-
-    GObject *w_summ_lb = gtk_builder_get_object(builder, "notification_summary_lb");
-    GObject *w_body_lb = gtk_builder_get_object(builder, "notification_body_lb");
-
     gtk_list_item_set_child(listitem, GTK_WIDGET(w_box));
-
-    /* Setup new rows */
-    //GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
-    //gtk_list_item_set_child(listitem, hbox);
-
-    //GtkWidget *lb_app = gtk_label_new(NULL);
-    //gtk_box_append(GTK_BOX(hbox), lb_app);
-
-    //GtkWidget *lb_body = gtk_label_new(NULL);
-    //gtk_box_append(GTK_BOX(hbox), lb_body);
-
-    //GtkWidget *lb_summary = gtk_label_new(NULL);
-    //gtk_box_append(GTK_BOX(hbox), lb_summary);
-}
-
-static GIcon* find_icon(const char *app_name)
-{
-    // lookup icon
-    GList *apps = g_app_info_get_all();
-    GList *app = apps;
-
-    GIcon *match = NULL;
-    while (app != NULL) {
-        GAppInfo *app_info = app->data;
-        const char *name = g_app_info_get_name(app_info);
-
-        if (strcmp(name, app_name) == 0) {
-            match = g_app_info_get_icon(app_info);
-            break;
-        }
-        app = app->next;
-    }
-    return match;
 }
 
 static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
@@ -118,18 +77,22 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     GtkWidget *lb_summary = gtk_widget_get_next_sibling(GTK_WIDGET(header_box));
     GtkWidget *lb_body = gtk_widget_get_next_sibling(GTK_WIDGET(lb_summary));
 
-    GIcon *icon = find_icon(NOTIFICATION_ITEM(item)->app);
-    if (icon == NULL)
-        gtk_image_set_from_resource(GTK_IMAGE(image), NOTIFICATION_RESOURCE_DEFAULT_ICON);
+    if (item->app_info != NULL)
+        gtk_image_set_from_gicon(GTK_IMAGE(image), g_app_info_get_icon(item->app_info));
     else
-        gtk_image_set_from_gicon(GTK_IMAGE(image), icon);
+        gtk_image_set_from_resource(GTK_IMAGE(image), NOTIFICATION_RESOURCE_DEFAULT_ICON);
 
-    gtk_label_set_text(GTK_LABEL(lb_app), NOTIFICATION_ITEM(item)->app);
+    char app_buf[256] = "";
+    sprintf(app_buf, "<b>%s</b>", NOTIFICATION_ITEM(item)->app);
+    gtk_label_set_markup(GTK_LABEL(lb_app), app_buf);
+    //gtk_label_set_text(GTK_LABEL(lb_app), NOTIFICATION_ITEM(item)->app);
     gtk_label_set_text(GTK_LABEL(lb_body), NOTIFICATION_ITEM(item)->body);
     gtk_label_set_text(GTK_LABEL(lb_summary), NOTIFICATION_ITEM(item)->summary);
 
+
     char ts[128] = "";
-    strftime(ts, 128, "%Y-%m-%d %H:%M:%S", localtime(&NOTIFICATION_ITEM(item)->ts));
+    ts_to_time_elapsed(NOTIFICATION_ITEM(item)->ts, ts);
+    //strftime(ts, 128, "%Y-%m-%d %H:%M:%S", localtime(&NOTIFICATION_ITEM(item)->ts));
     gtk_label_set_text(GTK_LABEL(lb_time), ts);
 }
 
@@ -165,6 +128,20 @@ gboolean on_stop_search(GtkWidget *widget, gpointer data)
 
 }
 
+static void on_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
+{
+    GListModel *model = G_LIST_MODEL(user_data);
+    NotificationItem *item = g_list_model_get_item(G_LIST_MODEL(model), pos);
+    printf("run app\n");
+    if (item->app_info != NULL)
+        g_app_info_launch(item->app_info, NULL, NULL, NULL);
+    // get appinfo at model creation, can be used to start app and get icon
+    //GAppInfo *app_info = item->app_info;
+
+    // something something GError
+    //g_app_info_launch(app_info, NULL, NULL, NULL);
+}
+
 GObject* notifications_gui_init()
 {
     /*
@@ -198,6 +175,7 @@ GObject* notifications_gui_init()
     g_signal_connect(factory, "bind",  G_CALLBACK(bind_cb), NULL);
 
     g_signal_connect(w_search_entry, "stop-search",  G_CALLBACK(on_stop_search), NULL);
+    g_signal_connect(G_OBJECT(w_list_view), "activate", G_CALLBACK(on_run_app_cb), no_sel);
 
     // find signal id for type/signal
     guint sig_id;

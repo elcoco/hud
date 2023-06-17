@@ -18,11 +18,12 @@ struct _NotificationItem {
     const char *app;
     const char *summary;
     time_t ts;
+    GAppInfo *app_info;
 };
 
 #define NOTIFICATIONS_UI_PATH "/resources/ui/gui.ui"
 #define NOTIFICATION_UI_PATH "/resources/ui/gui.ui"
-#define NOTIFICATION_RESOURCE_DEFAULT_ICON "resources/icons/notification.png"
+#define NOTIFICATION_RESOURCE_DEFAULT_ICON "/resources/icons/notification.png"
 
 GObject* notifications_gui_init();
 

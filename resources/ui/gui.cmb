@@ -31,8 +31,8 @@
 	(1,73,"GtkBox","search_item_box",None,None,None,None,None),
 	(1,75,"GtkLabel","search_item_text_lb",73,None,None,None,1),
 	(1,76,"GtkBox","search_item_header_box",73,None,None,None,None),
-	(1,77,"GtkLabel","lineno",76,None,None,None,1),
-	(1,78,"GtkLabel","search_item_path_lb",76,None,None,None,None)
+	(1,77,"GtkLabel","lineno",76,None,None,None,2),
+	(1,78,"GtkLabel","search_item_path_lb",76,None,None,None,1)
   </object>
   <object_property>
 	(1,38,"GtkOrientable","orientation","vertical",None,None,None,None,None),
@@ -83,7 +83,9 @@
 	(1,72,"GtkWidget","vexpand","True",None,None,None,None,None),
 	(1,73,"GtkOrientable","orientation","vertical",None,None,None,None,None),
 	(1,75,"GtkLabel","label","text",None,None,None,None,None),
+	(1,75,"GtkLabel","selectable","True",None,None,None,None,None),
 	(1,75,"GtkLabel","wrap","True",None,None,None,None,None),
+	(1,75,"GtkLabel","wrap-mode","word-char",None,None,None,None,None),
 	(1,75,"GtkWidget","halign","start",None,None,None,None,None),
 	(1,77,"GtkLabel","label","lineno",None,None,None,None,None),
 	(1,77,"GtkWidget","halign","start",None,None,None,None,None),

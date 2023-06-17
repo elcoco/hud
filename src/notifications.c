@@ -72,24 +72,17 @@ struct NotifyItem* notify_req(int amount)
 
     printf("exec: %s\n", cmd);
 
-    //char *buf = NULL;
-
-
     char *buf = NULL;
     get_all_from_pipe(pipe, &buf);
         
-    //buf[strlen(buf)-1] = '\0';
-    //printf(">>%s<<\n", buf);
     JSONObject* rn = json_load(buf);
 
     if (rn == NULL || !rn->is_object) {
         fprintf(stderr, "Failed to get JSON from dunst");
         return NULL;
     }
-    //json_print(rn, 0);
 
     // TODO path with mixed keys/array indices should be possible
-
     struct JSONObject *n1 = json_get_path(rn, "data");
 
     assert(n1 != NULL);
@@ -97,13 +90,14 @@ struct NotifyItem* notify_req(int amount)
     struct JSONObject *msgs = n1->children[0];
     struct JSONObject *msg = msgs->value;
 
-    //struct NotifyItem *ni_tmp = ni;
     struct NotifyItem *ni_tmp = NULL;
-    struct NotifyItem **ni_first = &ni_tmp;
+    struct NotifyItem *ni_head = NULL;
 
     while (msg != NULL) {
-        //json_print(msg, 0);
         ni_tmp = notify_init(ni_tmp);
+
+        if (ni_head == NULL)
+            ni_head = ni_tmp;
 
         struct JSONObject *nbody = json_get_path(msg, "body/data");
         struct JSONObject *nmsg  = json_get_path(msg, "message/data");
@@ -122,5 +116,5 @@ struct NotifyItem* notify_req(int amount)
 
         msg = msg->next;
     }
-    return *ni_first;
+    return ni_head;
 }

@@ -29,6 +29,8 @@ static SearchItem *search_item_new(struct RGLine *l)
     item->path = l->path;
     item->lineno = l->lineno;
 
+
+
     return item;
 }
 
@@ -69,10 +71,14 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     GtkWidget *box_header = gtk_widget_get_first_child(GTK_WIDGET(box));
     GtkWidget *path_lb = gtk_widget_get_first_child(GTK_WIDGET(box_header));
     GtkWidget *lineno_lb = gtk_widget_get_next_sibling(GTK_WIDGET(path_lb));
-
     GtkWidget *text_lb = gtk_widget_get_next_sibling(GTK_WIDGET(box_header));
-    
-    gtk_label_set_text(GTK_LABEL(path_lb), SEARCH_ITEM(item)->path);
+
+    char path_buf[256] = "";
+    sprintf(path_buf, "<b>%s</b>", SEARCH_ITEM(item)->path);
+    gtk_label_set_markup(GTK_LABEL(path_lb), path_buf);
+    gtk_label_set_lines(GTK_LABEL(text_lb), 2);
+
+    //gtk_label_set_text(GTK_LABEL(path_lb), SEARCH_ITEM(item)->path);
     gtk_label_set_text(GTK_LABEL(text_lb), SEARCH_ITEM(item)->text);
 
     char buf[128] = "";
@@ -93,11 +99,15 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
         return;
 
     struct RGLine *l = rgline_init(NULL);
-    if (rg_request(inp_txt, l, RG_AMOUNT_RESULTS) < 0) {
+    int res;
+    if ((res = rg_request(inp_txt, l, RG_AMOUNT_RESULTS)) < 0) {
         fprintf(stderr, "Error while calling ripgrep\n");
         return;
     }
-
+    if (res == 0) {
+        printf("Search has no results\n");
+        return;
+    }
 
     while (l != NULL) {
         SearchItem *item = search_item_new(l);
