@@ -1,7 +1,10 @@
 #include "notifications_gui.h"
+#include <pthread.h>
 
 //https://blog.gtk.org/2020/09/05/a-primer-on-gtklistview/
 // to bind do window use: gtk_window_set_display (GTK_WINDOW (window),
+
+struct ThreadState thread_state;
 
 struct _NotificationItemClass {
     GObjectClass parent_class;
@@ -34,20 +37,19 @@ static NotificationItem *notification_item_new(const char *app, const char *body
 static GListModel *notification_model_new(void)
 {
     /* fill model with some fancy data */
-
-    // get data
-    //struct NotifyItem *ni = notify_init(NULL);
-    struct NotifyItem *ni = notify_req(100);
-    
     GListStore *store = g_list_store_new(G_TYPE_OBJECT);
 
-    while (ni != NULL) {
+    // get data
+    //struct NotifyItem *ni = notify_req(100);
+    //
 
-        NotificationItem *item = notification_item_new(ni->app, ni->summary, ni->body, ni->ts);
-        g_list_store_append(store, item);
-        ni = ni->next;
-    }
-    // TODO destroy ni
+    //while (ni != NULL) {
+
+    //    NotificationItem *item = notification_item_new(ni->app, ni->summary, ni->body, ni->ts);
+    //    g_list_store_append(store, item);
+    //    ni = ni->next;
+    //}
+    //// TODO destroy ni
     return G_LIST_MODEL(store);
 }
 
@@ -142,14 +144,33 @@ static void on_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
     //g_app_info_launch(app_info, NULL, NULL, NULL);
 }
 
+void* notifications_get_new_thread(void* arg)
+{
+    struct ThreadState *ts = arg;
+    GListModel *model = ts->arg;
+
+    while (! ts->stopped) {
+        printf("!!!!!!! update model\n");
+
+        g_list_store_remove_all(G_LIST_STORE(model));
+
+        struct NotifyItem *ni = notify_req(100);
+
+        while (ni != NULL) {
+
+            NotificationItem *item = notification_item_new(ni->app, ni->summary, ni->body, ni->ts);
+            g_list_store_append(G_LIST_STORE(model), item);
+            ni = ni->next;
+
+        }
+        sleep(ts->interval_ms/1000);
+    }
+    return NULL;
+}
+
 GObject* notifications_gui_init()
 {
-    /*
-    static int is_initialized = 0;
-    if (is_initialized)
-        return NULL;
-    is_initialized = 1;
-    */
+
 
     // create our custom model
     GListModel *notification_model = notification_model_new();
@@ -201,6 +222,12 @@ GObject* notifications_gui_init()
     gtk_list_view_set_factory(GTK_LIST_VIEW(w_list_view), GTK_LIST_ITEM_FACTORY(factory));
 
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(w_scroll_window), GTK_WIDGET(w_list_view));
+
+    thread_state.stopped = 0;
+    thread_state.arg = (void*)notification_model;
+    thread_state.interval_ms = 5 * 1000;
+    //pthread_create(&(thread_state.id), NULL, notifications_get_new_thread, (void*)&thread_state);
+
 
     return w_vbox;
 }

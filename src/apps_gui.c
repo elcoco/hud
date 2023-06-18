@@ -161,7 +161,6 @@ static void se_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
 
     // something something GError
     g_app_info_launch(app_info, NULL, NULL, NULL);
-
 }
 
 static int custom_sorter_cb(const void *li, const void *ri, gpointer user_data)
@@ -182,9 +181,6 @@ static gboolean event_key_pressed_cb(GtkEventControllerKey  *controller,
                                      GdkModifierType state,
                                      GtkWidget       *widget)
 {
-    /* Focus search entry on buttonpress and enter character */
-    printf("%d  %d  %d\n", GDK_KEY_A, keyval, GDK_KEY_z);
-
     char text[256] = "";
 
     if (keyval >= GDK_KEY_A && keyval <= GDK_KEY_z ) {
