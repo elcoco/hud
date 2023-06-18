@@ -5,7 +5,6 @@
 
 #include <gtk/gtk.h>
 #include <glib/gstdio.h>
-#include <pthread.h>
 
 #include "notifications.h"
 #include "utils.h"
@@ -22,17 +21,10 @@ struct _NotificationItem {
     GAppInfo *app_info;
 };
 
-struct ThreadState {
-    int stopped;
-    int(*cb)(void*);
-    pthread_t id;
-    void* arg;
-    time_t interval_ms;
-};
-
 #define NOTIFICATIONS_UI_PATH "/resources/ui/gui.ui"
 #define NOTIFICATION_UI_PATH "/resources/ui/gui.ui"
 #define NOTIFICATION_RESOURCE_DEFAULT_ICON "/resources/icons/notification.png"
+#define NOTIFICATION_UPDATE_INTERVAL_MS 5000
 
 GObject* notifications_gui_init();
 

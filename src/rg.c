@@ -27,7 +27,7 @@ void rgline_print_all(struct RGLine *l)
     }
 }
 
-int rg_request(const char *search, struct RGLine *l, int amount)
+int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop)
 {
     /* Run Ripgrep and return hits as linked list by argument.
      * Function returns amount of hits or error if <0
@@ -45,6 +45,11 @@ int rg_request(const char *search, struct RGLine *l, int amount)
     printf("exec: %s\n", cmd);
 
     while (!feof(pipe)) {
+        if (*do_stop == 1) {
+            printf(">>>>>>>>> KILLING RG\n");
+            break;
+        }
+
         if (nfound == amount)
             break;
 
@@ -108,12 +113,4 @@ int rg_request(const char *search, struct RGLine *l, int amount)
 on_err:
     pclose(pipe);
     return -1;
-}
-
-void rg_test(char *search)
-{
-    struct RGLine *l = rgline_init(NULL);
-
-    if (rg_request(search, l, 100) > 0)
-        rgline_print_all(l);
 }

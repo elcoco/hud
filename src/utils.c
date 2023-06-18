@@ -91,9 +91,6 @@ int get_all_from_pipe(FILE* pipe, char **buf)
 
         buf_size += chunk_size;
         *buf = realloc(*buf, buf_size+1);
-
-        printf("%d", nread);
-
     }
     // end string and cut off newline
     if (nread > 0)

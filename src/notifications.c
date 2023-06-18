@@ -70,7 +70,7 @@ struct NotifyItem* notify_req(int amount)
 
     FILE *pipe = popen(cmd, "r");
 
-    printf("exec: %s\n", cmd);
+    //printf("exec: %s\n", cmd);
 
     char *buf = NULL;
     get_all_from_pipe(pipe, &buf);

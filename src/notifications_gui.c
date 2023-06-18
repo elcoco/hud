@@ -1,10 +1,7 @@
 #include "notifications_gui.h"
-#include <pthread.h>
 
 //https://blog.gtk.org/2020/09/05/a-primer-on-gtklistview/
 // to bind do window use: gtk_window_set_display (GTK_WINDOW (window),
-
-struct ThreadState thread_state;
 
 struct _NotificationItemClass {
     GObjectClass parent_class;
@@ -30,7 +27,6 @@ static NotificationItem *notification_item_new(const char *app, const char *body
     item->summary = strdup(summary);
     item->ts = ts;
     item->app_info = find_appinfo(app);
-
     return item;
 }
 
@@ -38,18 +34,6 @@ static GListModel *notification_model_new(void)
 {
     /* fill model with some fancy data */
     GListStore *store = g_list_store_new(G_TYPE_OBJECT);
-
-    // get data
-    //struct NotifyItem *ni = notify_req(100);
-    //
-
-    //while (ni != NULL) {
-
-    //    NotificationItem *item = notification_item_new(ni->app, ni->summary, ni->body, ni->ts);
-    //    g_list_store_append(store, item);
-    //    ni = ni->next;
-    //}
-    //// TODO destroy ni
     return G_LIST_MODEL(store);
 }
 
@@ -144,28 +128,21 @@ static void on_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
     //g_app_info_launch(app_info, NULL, NULL, NULL);
 }
 
-void* notifications_get_new_thread(void* arg)
+int notifications_get_data_thread(void* arg)
 {
-    struct ThreadState *ts = arg;
-    GListModel *model = ts->arg;
+    GListModel *model = arg;
 
-    while (! ts->stopped) {
-        printf("!!!!!!! update model\n");
+    g_list_store_remove_all(G_LIST_STORE(model));
 
-        g_list_store_remove_all(G_LIST_STORE(model));
+    struct NotifyItem *ni = notify_req(100);
 
-        struct NotifyItem *ni = notify_req(100);
+    while (ni != NULL) {
 
-        while (ni != NULL) {
-
-            NotificationItem *item = notification_item_new(ni->app, ni->summary, ni->body, ni->ts);
-            g_list_store_append(G_LIST_STORE(model), item);
-            ni = ni->next;
-
-        }
-        sleep(ts->interval_ms/1000);
+        NotificationItem *item = notification_item_new(ni->app, ni->summary, ni->body, ni->ts);
+        g_list_store_append(G_LIST_STORE(model), item);
+        ni = ni->next;
     }
-    return NULL;
+    return 1;
 }
 
 GObject* notifications_gui_init()
@@ -201,33 +178,18 @@ GObject* notifications_gui_init()
     // find signal id for type/signal
     guint sig_id;
     g_signal_parse_name("stop-search", GTK_TYPE_SEARCH_ENTRY, &sig_id, NULL, 0);
+
     // find signal handler for instance with matching signal id
     gulong sig_handler = g_signal_handler_find(G_OBJECT(w_search_entry), G_SIGNAL_MATCH_ID, sig_id, 0, NULL, NULL, NULL);
-    // disconnect handler
-    //g_signal_handler_disconnect(G_OBJECT(w_search_entry), sig_handler);
-
-    printf("FOUND ID: %d\n", sig_id);
-    printf("FOUND HANDLER: %ld\n", sig_handler);
-
-
-    //GtkEventController *controller = gtk_shortcut_controller_new();
-    //gtk_widget_add_controller(GTK_WIDGET(w_search_entry), controller);
-    //gtk_shortcut_controller_remove_shortcut(controller, shortcut);
-
-
-
-
 
     gtk_list_view_set_model(GTK_LIST_VIEW(w_list_view), GTK_SELECTION_MODEL(no_sel));
     gtk_list_view_set_factory(GTK_LIST_VIEW(w_list_view), GTK_LIST_ITEM_FACTORY(factory));
 
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(w_scroll_window), GTK_WIDGET(w_list_view));
 
-    thread_state.stopped = 0;
-    thread_state.arg = (void*)notification_model;
-    thread_state.interval_ms = 5 * 1000;
-    //pthread_create(&(thread_state.id), NULL, notifications_get_new_thread, (void*)&thread_state);
-
+    // Run function without blocking main thread
+    notifications_get_data_thread(notification_model);
+    g_timeout_add(NOTIFICATION_UPDATE_INTERVAL_MS, notifications_get_data_thread, notification_model);
 
     return w_vbox;
 }

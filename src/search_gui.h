@@ -9,6 +9,7 @@
 
 #include "rg.h"
 #include "utils.h"
+#include "job.h"
 
 #define RG_AMOUNT_RESULTS 1000
 #define SEARCH_UI_PATH "/resources/ui/gui.ui"
@@ -21,6 +22,14 @@ struct _SearchItem {
     const char *path;
     const char *text;
     int lineno;
+};
+
+struct SearchResult {
+    GListStore *model;
+    GtkLabel *label;
+    int nfound;
+    struct RGLine *result;
+    char search_text[256];
 };
 
 

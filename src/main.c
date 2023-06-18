@@ -27,22 +27,13 @@ struct ThreadArgs *ta;
 
 struct State state;
 
-void die(char *fmt, ...)
-{
-    va_list ptr;
-    va_start(ptr, fmt);
-    vfprintf(stderr, fmt, ptr);
-    va_end(ptr);
-    exit(1);
-}
-
-static gboolean on_shortcut(GtkWidget *widget, GVariant *args, gpointer data)
+static gboolean on_switch_stackpage_cb(GtkWidget *widget, GVariant *args, gpointer data)
 {
     gtk_stack_set_visible_child_name(GTK_STACK(widget), (char*)data);
     return 1;
 }
 
-gint glist_find_custom_cb(gconstpointer a, gconstpointer b)
+gint on_glist_find_custom_cb(gconstpointer a, gconstpointer b)
 {
     /* Custom callback for finding stuff in a glist linked list */
     if (strcmp(a, b) == 0)
@@ -51,14 +42,14 @@ gint glist_find_custom_cb(gconstpointer a, gconstpointer b)
         return 1;
 }
 
-static gboolean focus_tab_prev_cb(GtkWidget *widget, GVariant *args, gpointer data)
+static gboolean on_focus_tab_prev_cb(GtkWidget *widget, GVariant *args, gpointer data)
 {
     const char *cur = gtk_stack_get_visible_child_name(GTK_STACK(widget));
 
     GList *first = data;
     GList *match;
 
-    if ((match = g_list_find_custom(first, cur, glist_find_custom_cb))) {
+    if ((match = g_list_find_custom(first, cur, on_glist_find_custom_cb))) {
         GList *prev;
 
         // wrap
@@ -71,14 +62,14 @@ static gboolean focus_tab_prev_cb(GtkWidget *widget, GVariant *args, gpointer da
     return 1;
 }
 
-static gboolean focus_tab_next_cb(GtkWidget *widget, GVariant *args, gpointer data)
+static gboolean on_focus_tab_next_cb(GtkWidget *widget, GVariant *args, gpointer data)
 {
     const char *cur = gtk_stack_get_visible_child_name(GTK_STACK(widget));
 
     GList *first = data;
     GList *match;
 
-    if ((match = g_list_find_custom(first, cur, glist_find_custom_cb))) {
+    if ((match = g_list_find_custom(first, cur, on_glist_find_custom_cb))) {
         GList *next;
 
         // wrap
@@ -89,16 +80,6 @@ static gboolean focus_tab_next_cb(GtkWidget *widget, GVariant *args, gpointer da
         gtk_stack_set_visible_child_name(GTK_STACK(widget), (char*)next->data);
     }
     return 1;
-}
-
-static gboolean event_key_pressed_cb(GtkWidget       *drawing_area,
-                                     guint           keyval,
-                                     guint           keycode,
-                                     GdkModifierType state,
-                                     gpointer        user_data)
-{
-    printf("keypress\n");
-    return FALSE;
 }
 
 int on_accept_cb(void* arg)
@@ -129,20 +110,20 @@ static void setup_keys(GtkWidget *widget)
         if (i <= 9) {
             gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
                                                  gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_1 + i, GDK_ALT_MASK),
-                                                                  gtk_callback_action_new(on_shortcut, name, NULL)));
+                                                                  gtk_callback_action_new(on_switch_stackpage_cb, name, NULL)));
         }
     }
 
     // cycle through stack pages using ctrl-tab / ctrl-shift-tab
     gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
                                          gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Tab, GDK_CONTROL_MASK),
-                                                          gtk_callback_action_new(focus_tab_next_cb, names, NULL)));
+                                                          gtk_callback_action_new(on_focus_tab_next_cb, names, NULL)));
     gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
                                          gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Tab, GDK_SHIFT_MASK | GDK_CONTROL_MASK),
-                                                          gtk_callback_action_new(focus_tab_prev_cb, names, NULL)));
+                                                          gtk_callback_action_new(on_focus_tab_prev_cb, names, NULL)));
 }
 
-static void app_activate(GtkApplication *app)
+static void app_activate_cb(GtkApplication *app)
 {
     //GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
     GtkBuilder *builder = gtk_builder_new_from_resource("/resources/ui/gui.ui");
@@ -246,7 +227,7 @@ int main(int argc, char **argv)
         return 1;
 
     GtkApplication *app = gtk_application_new("com.eco.hud", G_APPLICATION_DEFAULT_FLAGS);
-    g_signal_connect(app, "activate", G_CALLBACK(app_activate), NULL);
+    g_signal_connect(app, "activate", G_CALLBACK(app_activate_cb), NULL);
 
     int stat = g_application_run(G_APPLICATION(app), 0, NULL);
     //int stat = g_application_run(G_APPLICATION(app), argc, argv);

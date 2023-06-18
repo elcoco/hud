@@ -6,6 +6,7 @@
 //
 //
 
+struct JobPool *pool;
 
 struct _SearchItemClass {
     GObjectClass parent_class;
@@ -86,38 +87,84 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     gtk_label_set_text(GTK_LABEL(lineno_lb), buf);
 }
 
-static void search_entry_changed_cb(void* self, gpointer user_data)
+int data_handle_cb(void *arg)
 {
-    /* Is called when search entry is changed and notifies users of filter to update the models */
-    printf("search changed\n");
-    GListModel *model = G_LIST_MODEL(user_data);
+    struct Job *j = arg;
+    struct SearchResult *result = j->arg;
+    GListStore *model = result->model;
+    GtkLabel *label = result->label;
+    
+    printf("%d data_handler: doing data stuff\n", j->id);
+
     g_list_store_remove_all(G_LIST_STORE(model));
 
-    const char *inp_txt = gtk_editable_get_text(GTK_EDITABLE(self));
-
-    if (strlen(inp_txt) == 0)
-        return;
-
-    struct RGLine *l = rgline_init(NULL);
-    int res;
-    if ((res = rg_request(inp_txt, l, RG_AMOUNT_RESULTS)) < 0) {
-        fprintf(stderr, "Error while calling ripgrep\n");
-        return;
-    }
-    if (res == 0) {
+    if (result->nfound == 0) {
         printf("Search has no results\n");
-        return;
+        gtk_label_set_text(GTK_LABEL(label), "Found 0 results");
+        return 0;
     }
 
+    struct RGLine *l = result->result;
     while (l != NULL) {
         SearchItem *item = search_item_new(l);
         g_list_store_append(G_LIST_STORE(model), item);
         l = l->next;
     }
+
+    char buf[128] = "";
+
+    if (result->nfound == RG_AMOUNT_RESULTS)
+        sprintf(buf, "Found >%d results", result->nfound);
+    else
+        sprintf(buf, "Found %d results", result->nfound);
+
+    gtk_label_set_text(GTK_LABEL(label), buf);
+    printf("%s\n", buf);
+
+    return 1;
+}
+
+void* worker_thread(void *arg)
+{
+    struct Job *j = arg;
+    struct SearchResult *result = j->arg;
+    printf("%d worker: start\n", j->id);
+
+    result->result = rgline_init(NULL);
+
+    if (!j->do_stop) {
+        if ((result->nfound = rg_request(result->search_text, result->result, RG_AMOUNT_RESULTS, &(j->do_stop))) < 0) {
+            fprintf(stderr, "Error while calling ripgrep\n");
+            result->nfound = -1;
+        }
+    }
+
+    printf("worker %d: finished\n", j->id);
+    j->worker_running = 0;
+    g_thread_exit(NULL);
+    return NULL;
+}
+
+static void search_entry_changed_cb(void* self, gpointer user_data)
+{
+    pool_kill_all(pool);
+    GList *args = user_data;
+    GtkSearchEntry *search_entry = GTK_SEARCH_ENTRY(g_list_nth(args, 2)->data);;
+
+    struct SearchResult *result = malloc(sizeof(struct SearchResult));
+    strcpy(result->search_text, gtk_editable_get_text(GTK_EDITABLE(search_entry)));
+    result->nfound = 0;
+    result->model = G_LIST_STORE(g_list_nth(args, 0)->data);;
+    result->label = GTK_LABEL(g_list_nth(args, 1)->data);
+    struct Job *j = job_init(data_handle_cb, worker_thread, result);
+    pool_add_job(pool, j);
+    job_run(j);
 }
 
 GObject* search_gui_init()
 {
+    pool = pool_init();
+
     // create our custom model
     GListModel *search_model = search_model_new();
 
@@ -127,11 +174,15 @@ GObject* search_gui_init()
     GObject *w_scroll_window = gtk_builder_get_object(builder, "search_sw");
     GObject *w_list_view     = gtk_builder_get_object(builder, "search_lv");
     GObject *w_search_entry  = gtk_builder_get_object(builder, "search_se");
+    GObject *lb_status       = gtk_builder_get_object(builder, "search_status_lb");
 
     GtkNoSelection *no_sel = gtk_no_selection_new(G_LIST_MODEL(search_model));
 
     // connect search input via callback to update model on change
-    g_signal_connect(G_OBJECT(w_search_entry), "search-changed", G_CALLBACK(search_entry_changed_cb), search_model);
+    GList *args = g_list_append(NULL, search_model);
+    args = g_list_append(args, lb_status);
+    args = g_list_append(args, w_search_entry);
+    g_signal_connect(G_OBJECT(w_search_entry), "search-changed", G_CALLBACK(search_entry_changed_cb), args);
 
     // factory creates widgets to connect model to view
     GtkListItemFactory *factory = gtk_signal_list_item_factory_new();

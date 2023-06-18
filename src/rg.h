@@ -32,7 +32,8 @@ struct RGLine {
 void rgline_print_all(struct RGLine *l);
 void rg_test(char *search);
 //int rg_request(char *search, struct RGLine *l);
-int rg_request(const char *search, struct RGLine *l, int amount);
+//int rg_request(const char *search, struct RGLine *l, int amount);
+int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop);
 struct RGLine* rgline_init(struct RGLine *prev);
 
 #endif // !RG_H

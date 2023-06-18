@@ -78,6 +78,7 @@
       <object class="GtkLabel" id="notification_summary_lb">
         <property name="halign">start</property>
         <property name="label">summary</property>
+        <property name="wrap">True</property>
       </object>
     </child>
     <child>
@@ -107,12 +108,23 @@
         </child>
       </object>
     </child>
+    <child>
+      <object class="GtkBox" id="search_status_box">
+        <property name="halign">center</property>
+        <property name="margin-bottom">5</property>
+        <property name="margin-top">10</property>
+        <child>
+          <object class="GtkLabel" id="search_status_lb">
+            <property name="halign">center</property>
+          </object>
+        </child>
+      </object>
+    </child>
   </object>
   <object class="GtkBox" id="search_item_box">
     <property name="orientation">vertical</property>
     <child>
       <object class="GtkBox" id="search_item_header_box">
-        <property name="width-request">400</property>
         <child>
           <object class="GtkLabel" id="search_item_path_lb">
             <property name="halign">start</property>
