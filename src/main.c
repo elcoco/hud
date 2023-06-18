@@ -105,6 +105,39 @@ int on_accept_cb(void* arg)
     return 0;
 }
 
+static void setup_keys(GtkWidget *widget)
+{
+    // keep track of stack page names so we can cycle them
+    GList *names = NULL;
+
+    // setup keyboard shortcuts
+    GtkEventController *controller = gtk_shortcut_controller_new();
+    gtk_widget_add_controller(GTK_WIDGET(widget), controller);
+
+    GListModel *m = G_LIST_MODEL(gtk_stack_get_pages(GTK_STACK(widget)));
+    for (int i=0 ; i<g_list_model_get_n_items(m) ; i++) {
+        GtkStackPage *p = g_list_model_get_item(m, i);
+        char *name = (char*)gtk_stack_page_get_name(p);
+
+        if (names == NULL)
+            names = g_list_append(NULL, strdup(name));
+        else
+            names = g_list_append(names, strdup(name));
+
+        gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
+                                             gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_1 + i, GDK_ALT_MASK),
+                                                              gtk_callback_action_new(on_shortcut, name, NULL)));
+    }
+
+    // cycle through stack pages using ctrl-tab / ctrl-shift-tab
+    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
+                                         gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Tab, GDK_CONTROL_MASK),
+                                                          gtk_callback_action_new(focus_tab_next_cb, names, NULL)));
+    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
+                                         gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Tab, GDK_SHIFT_MASK | GDK_CONTROL_MASK),
+                                                          gtk_callback_action_new(focus_tab_prev_cb, names, NULL)));
+}
+
 static void app_activate(GtkApplication *app)
 {
     //GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
@@ -127,12 +160,6 @@ static void app_activate(GtkApplication *app)
     pthread_create(&thread_id, NULL, listen_for_conn, (void*)ta);
 
 
-    // keep track of stack page names so we can cycle them
-    GList *names = g_list_alloc();
-    names = g_list_append(NULL, "apps");
-    names = g_list_append(names, "notifications");
-    names = g_list_append(names, "search");
-
     // setup apps stackpage
     GObject *w_apps = apps_gui_init();
     GtkStackPage *w_stackpage_apps = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_apps));
@@ -152,29 +179,7 @@ static void app_activate(GtkApplication *app)
 
     //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), "search");
 
-    // setup keyboard shortcuts
-    GtkEventController *controller = gtk_shortcut_controller_new();
-    gtk_widget_add_controller(GTK_WIDGET(w_stack), controller);
-    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
-                                         gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_1, GDK_ALT_MASK),
-                                                          gtk_callback_action_new(on_shortcut, "apps", NULL)));
-    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
-                                         gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_2, GDK_ALT_MASK),
-                                                          gtk_callback_action_new(on_shortcut, "notifications", NULL)));
-    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
-                                         gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_3, GDK_ALT_MASK),
-                                                          gtk_callback_action_new(on_shortcut, "bever", NULL)));
-    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
-                                         gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Escape, 0),
-                                                          gtk_callback_action_new(on_shortcut, "bever", NULL)));
-
-    // cycle through stack pages using ctrl-tab / ctrl-shift-tab
-    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
-                                         gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Tab, GDK_CONTROL_MASK),
-                                                          gtk_callback_action_new(focus_tab_next_cb, names, NULL)));
-    gtk_shortcut_controller_add_shortcut(GTK_SHORTCUT_CONTROLLER(controller),
-                                         gtk_shortcut_new(gtk_keyval_trigger_new(GDK_KEY_Tab, GDK_SHIFT_MASK | GDK_CONTROL_MASK),
-                                                          gtk_callback_action_new(focus_tab_prev_cb, names, NULL)));
+    setup_keys(GTK_WIDGET(w_stack));
 
 
 
