@@ -74,8 +74,8 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     GtkWidget *lb_app = gtk_widget_get_next_sibling(GTK_WIDGET(image));
     GtkWidget *lb_time = gtk_widget_get_next_sibling(GTK_WIDGET(lb_app));
 
-    GtkWidget *lb_summary = gtk_widget_get_next_sibling(GTK_WIDGET(header_box));
-    GtkWidget *lb_body = gtk_widget_get_next_sibling(GTK_WIDGET(lb_summary));
+    GtkWidget *lb_body = gtk_widget_get_next_sibling(GTK_WIDGET(header_box));
+    GtkWidget *lb_summary = gtk_widget_get_next_sibling(GTK_WIDGET(lb_body));
 
     if (item->app_info != NULL)
         gtk_image_set_from_gicon(GTK_IMAGE(image), g_app_info_get_icon(item->app_info));
@@ -83,11 +83,11 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
         gtk_image_set_from_resource(GTK_IMAGE(image), NOTIFICATION_RESOURCE_DEFAULT_ICON);
 
     char app_buf[256] = "";
-    sprintf(app_buf, "<b>%s</b>", NOTIFICATION_ITEM(item)->app);
+    sprintf(app_buf, "<b>%s</b>", g_markup_escape_text(NOTIFICATION_ITEM(item)->app, -1));
     gtk_label_set_markup(GTK_LABEL(lb_app), app_buf);
     //gtk_label_set_text(GTK_LABEL(lb_app), NOTIFICATION_ITEM(item)->app);
-    gtk_label_set_text(GTK_LABEL(lb_body), NOTIFICATION_ITEM(item)->body);
-    gtk_label_set_text(GTK_LABEL(lb_summary), NOTIFICATION_ITEM(item)->summary);
+    gtk_label_set_markup(GTK_LABEL(lb_summary), g_markup_escape_text(NOTIFICATION_ITEM(item)->summary, -1));
+    gtk_label_set_markup(GTK_LABEL(lb_body), g_markup_escape_text(NOTIFICATION_ITEM(item)->body, -1));
 
 
     char ts[128] = "";

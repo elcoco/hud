@@ -152,14 +152,9 @@ static void se_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
 
     int n = g_list_model_get_n_items(G_LIST_MODEL(model));
 
-    printf("amount: %d\n",n);
-    printf("pos:    %d\n",pos);
-
     // if no items in selection
-    if (n == 0) {
-        printf("no items\n");
+    if (n == 0)
         return;
-    }
 
     AppItem *item = g_list_model_get_item(model, 0);
     GAppInfo *app_info = item->app_info;

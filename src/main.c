@@ -6,6 +6,7 @@
 #include "notifications_gui.h"
 #include "apps_gui.h"
 #include "search_gui.h"
+#include "sock.h"
 
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
@@ -19,6 +20,9 @@
 
 #define MAXBUF 1024 * 10
 
+// listener thread that handles window visibillity
+pthread_t thread_id;
+struct ThreadArgs *ta;
 
 
 void die(char *fmt, ...)
@@ -95,6 +99,12 @@ static gboolean event_key_pressed_cb(GtkWidget       *drawing_area,
     return FALSE;
 }
 
+int on_accept_cb(void* arg)
+{
+    gtk_widget_set_visible(GTK_WIDGET(arg), 1);
+    return 0;
+}
+
 static void app_activate(GtkApplication *app)
 {
     //GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
@@ -102,15 +112,26 @@ static void app_activate(GtkApplication *app)
     GObject *win = gtk_builder_get_object(builder, "main_win");
     GObject *w_stack = gtk_builder_get_object(builder, "main_stack");
 
+    gtk_window_set_hide_on_close(GTK_WINDOW(win), TRUE);
     gtk_window_set_application(GTK_WINDOW(win), app);
+
+
+    // Thread listens on unix domain socket for connections
+    // If a connection is made it will show the window
+    // When window is closed GTK will hide it instead of closing
+    ta = malloc(sizeof(struct ThreadArgs));
+    ta->cb = on_accept_cb;
+    ta->arg = (void*)win;
+    ta->stop = 0;
+    printf("Starting listener thread: 0X%lX\n", thread_id);
+    pthread_create(&thread_id, NULL, listen_for_conn, (void*)ta);
+
 
     // keep track of stack page names so we can cycle them
     GList *names = g_list_alloc();
     names = g_list_append(NULL, "apps");
     names = g_list_append(names, "notifications");
     names = g_list_append(names, "search");
-
-    // TOOD do lazy loading of stackpages to save startup time
 
     // setup apps stackpage
     GObject *w_apps = apps_gui_init();
@@ -168,5 +189,7 @@ int main(int argc, char **argv)
     int stat = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);
 
+    ta->stop = 1;
+    pthread_join(thread_id, NULL);
     return stat;
 }

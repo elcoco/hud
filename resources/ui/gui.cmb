@@ -9,10 +9,6 @@
 	(1,39,"GtkScrolledWindow","apps_sw",38,None,None,None,1),
 	(1,42,"GtkGridView","apps_gv",39,None,None,None,2),
 	(1,51,"GtkSearchEntry","apps_se",38,None,None,None,None),
-	(1,52,"GtkDialog","main_win",None,None,None,None,None),
-	(1,53,"GtkBox",None,52,None,None,None,None),
-	(1,54,"GtkStack","main_stack",53,None,None,None,None),
-	(1,55,"GtkStackSwitcher",None,53,None,None,None,1),
 	(1,56,"GtkBox","notifications_box",None,None,None,None,None),
 	(1,58,"GtkSearchEntry","notifications_se",56,None,None,None,1),
 	(1,59,"GtkScrolledWindow","notifications_sw",56,None,None,None,2),
@@ -32,7 +28,11 @@
 	(1,75,"GtkLabel","search_item_text_lb",73,None,None,None,1),
 	(1,76,"GtkBox","search_item_header_box",73,None,None,None,None),
 	(1,77,"GtkLabel","lineno",76,None,None,None,2),
-	(1,78,"GtkLabel","search_item_path_lb",76,None,None,None,1)
+	(1,78,"GtkLabel","search_item_path_lb",76,None,None,None,1),
+	(1,79,"GtkWindow","main_win",None,None,None,None,None),
+	(1,80,"GtkBox",None,79,None,None,None,None),
+	(1,81,"GtkStack","main_stack",80,None,None,None,None),
+	(1,82,"GtkStackSwitcher",None,80,None,None,None,1)
   </object>
   <object_property>
 	(1,38,"GtkOrientable","orientation","vertical",None,None,None,None,None),
@@ -42,14 +42,6 @@
 	(1,51,"GtkWidget","halign","center",None,None,None,None,None),
 	(1,51,"GtkWidget","margin-bottom","10",None,None,None,None,None),
 	(1,51,"GtkWidget","margin-top","10",None,None,None,None,None),
-	(1,53,"GtkOrientable","orientation","vertical",None,None,None,None,None),
-	(1,54,"GtkStack","transition-type","crossfade",None,None,None,None,None),
-	(1,54,"GtkWidget","margin-end","10",None,None,None,None,None),
-	(1,54,"GtkWidget","margin-start","10",None,None,None,None,None),
-	(1,55,"GtkStackSwitcher","stack","54",None,None,None,None,None),
-	(1,55,"GtkWidget","halign","center",None,None,None,None,None),
-	(1,55,"GtkWidget","margin-bottom","10",None,None,None,None,None),
-	(1,55,"GtkWidget","margin-top","10",None,None,None,None,None),
 	(1,56,"GtkOrientable","orientation","vertical",None,None,None,None,None),
 	(1,58,"GtkSearchEntry","placeholder-text","Search Notifications",None,None,None,None,None),
 	(1,58,"GtkWidget","halign","center",None,None,None,None,None),
@@ -92,6 +84,18 @@
 	(1,77,"GtkWidget","hexpand","True",None,None,None,None,None),
 	(1,77,"GtkWidget","margin-start","10",None,None,None,None,None),
 	(1,78,"GtkLabel","label","path",None,None,None,None,None),
-	(1,78,"GtkWidget","halign","start",None,None,None,None,None)
+	(1,78,"GtkWidget","halign","start",None,None,None,None,None),
+	(1,79,"GtkWidget","opacity","0.8",None,None,None,None,None),
+	(1,79,"GtkWindow","decorated","False",None,None,None,None,None),
+	(1,79,"GtkWindow","default-height","800",None,None,None,None,None),
+	(1,79,"GtkWindow","default-width","800",None,None,None,None,None),
+	(1,80,"GtkOrientable","orientation","vertical",None,None,None,None,None),
+	(1,81,"GtkStack","transition-type","crossfade",None,None,None,None,None),
+	(1,81,"GtkWidget","margin-end","10",None,None,None,None,None),
+	(1,81,"GtkWidget","margin-start","10",None,None,None,None,None),
+	(1,82,"GtkStackSwitcher","stack","81",None,None,None,None,None),
+	(1,82,"GtkWidget","halign","center",None,None,None,None,None),
+	(1,82,"GtkWidget","margin-bottom","10",None,None,None,None,None),
+	(1,82,"GtkWidget","margin-top","10",None,None,None,None,None)
   </object_property>
 </cambalache-project>

@@ -24,28 +24,6 @@
       </object>
     </child>
   </object>
-  <object class="GtkDialog" id="main_win">
-    <child>
-      <object class="GtkBox">
-        <property name="orientation">vertical</property>
-        <child>
-          <object class="GtkStack" id="main_stack">
-            <property name="margin-end">10</property>
-            <property name="margin-start">10</property>
-            <property name="transition-type">crossfade</property>
-          </object>
-        </child>
-        <child>
-          <object class="GtkStackSwitcher">
-            <property name="halign">center</property>
-            <property name="margin-bottom">10</property>
-            <property name="margin-top">10</property>
-            <property name="stack">main_stack</property>
-          </object>
-        </child>
-      </object>
-    </child>
-  </object>
   <object class="GtkBox" id="notifications_box">
     <property name="orientation">vertical</property>
     <child>
@@ -134,6 +112,7 @@
     <property name="orientation">vertical</property>
     <child>
       <object class="GtkBox" id="search_item_header_box">
+        <property name="width-request">400</property>
         <child>
           <object class="GtkLabel" id="search_item_path_lb">
             <property name="halign">start</property>
@@ -157,6 +136,32 @@
         <property name="selectable">True</property>
         <property name="wrap">True</property>
         <property name="wrap-mode">word-char</property>
+      </object>
+    </child>
+  </object>
+  <object class="GtkWindow" id="main_win">
+    <property name="decorated">False</property>
+    <property name="default-height">800</property>
+    <property name="default-width">800</property>
+    <property name="opacity">0.8</property>
+    <child>
+      <object class="GtkBox">
+        <property name="orientation">vertical</property>
+        <child>
+          <object class="GtkStack" id="main_stack">
+            <property name="margin-end">10</property>
+            <property name="margin-start">10</property>
+            <property name="transition-type">crossfade</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkStackSwitcher">
+            <property name="halign">center</property>
+            <property name="margin-bottom">10</property>
+            <property name="margin-top">10</property>
+            <property name="stack">main_stack</property>
+          </object>
+        </child>
       </object>
     </child>
   </object>
