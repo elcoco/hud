@@ -44,6 +44,7 @@ static GListModel *app_model_new(void)
 
         app = app->next;
     }
+    g_list_free(apps);
     return G_LIST_MODEL(store);
 }
 
@@ -79,6 +80,16 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
 
     gtk_image_set_from_gicon(GTK_IMAGE(image), g_app_info_get_icon(APP_ITEM(item)->app_info));
     gtk_label_set_text(GTK_LABEL(lb_name), g_app_info_get_name(APP_ITEM(item)->app_info));
+}
+
+static void teardown_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
+{
+    AppItem *item = gtk_list_item_get_item(listitem);
+    if (item == NULL)
+        return;
+
+    g_object_unref(item->app_info);
+    g_object_unref(item);
 }
 
 static void str_to_lower(char *buf)
@@ -214,6 +225,7 @@ GObject* apps_gui_init()
     GObject *w_se_apps       = gtk_builder_get_object(builder, "apps_se");
     GObject *w_box_apps      = gtk_builder_get_object(builder, "apps_box");
 
+
     //GtkNoSelection *no_sel;
     //GList *args = g_list_alloc();
     //args = g_list_append(args, w_se_apps);
@@ -239,6 +251,7 @@ GObject* apps_gui_init()
     GtkListItemFactory *factory = gtk_signal_list_item_factory_new();
     g_signal_connect(factory, "setup", G_CALLBACK(setup_cb), NULL);
     g_signal_connect(factory, "bind",  G_CALLBACK(bind_cb), NULL);
+    g_signal_connect(factory, "teardown",  G_CALLBACK(teardown_cb), NULL);
 
     // auto focus search on keypress
     GtkEventController *key_controller = gtk_event_controller_key_new();
@@ -255,7 +268,6 @@ GObject* apps_gui_init()
 
     // set focus on text field
     gtk_widget_grab_focus(GTK_WIDGET(w_se_apps));
-
 
     return w_box_apps;
 }

@@ -42,6 +42,7 @@ static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoi
     GtkBuilder *builder = gtk_builder_new_from_resource(NOTIFICATION_UI_PATH);
     GObject *w_box = gtk_builder_get_object(builder, "notification_box");
     gtk_list_item_set_child(listitem, GTK_WIDGET(w_box));
+    //g_object_unref(builder);
 }
 
 static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
@@ -69,17 +70,37 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
         gtk_image_set_from_resource(GTK_IMAGE(image), NOTIFICATION_RESOURCE_DEFAULT_ICON);
 
     char app_buf[256] = "";
-    sprintf(app_buf, "<b>%s</b>", g_markup_escape_text(NOTIFICATION_ITEM(item)->app, -1));
-    gtk_label_set_markup(GTK_LABEL(lb_app), app_buf);
-    //gtk_label_set_text(GTK_LABEL(lb_app), NOTIFICATION_ITEM(item)->app);
-    gtk_label_set_markup(GTK_LABEL(lb_summary), g_markup_escape_text(NOTIFICATION_ITEM(item)->summary, -1));
-    gtk_label_set_markup(GTK_LABEL(lb_body), g_markup_escape_text(NOTIFICATION_ITEM(item)->body, -1));
+    char *app_escaped     = g_markup_escape_text(NOTIFICATION_ITEM(item)->app, -1);
+    char *summary_escaped = g_markup_escape_text(NOTIFICATION_ITEM(item)->summary, -1);
+    char *body_escaped    = g_markup_escape_text(NOTIFICATION_ITEM(item)->body, -1);
 
+    sprintf(app_buf, "<b>%s</b>", app_escaped);
+    gtk_label_set_markup(GTK_LABEL(lb_app), app_buf);
+    gtk_label_set_markup(GTK_LABEL(lb_summary), summary_escaped);
+    gtk_label_set_markup(GTK_LABEL(lb_body), body_escaped);
+
+    free(app_escaped);
+    free(summary_escaped);
+    free(body_escaped);
 
     char ts[128] = "";
     ts_to_time_elapsed(NOTIFICATION_ITEM(item)->ts, ts);
-    //strftime(ts, 128, "%Y-%m-%d %H:%M:%S", localtime(&NOTIFICATION_ITEM(item)->ts));
     gtk_label_set_text(GTK_LABEL(lb_time), ts);
+}
+
+static void teardown_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
+{
+    NotificationItem *item = gtk_list_item_get_item(listitem);
+    if (item == NULL) {
+        return;
+    }
+    printf("destroying item: %s\n", item->app);
+    free(item->app);
+    free(item->body);
+    free(item->summary);
+    g_object_unref(item->app_info);
+    g_object_unref(item);
+
 }
 
 gboolean custom_filter_cb(void* fitem, gpointer user_data)
@@ -135,6 +156,7 @@ int notifications_get_data_thread(void* arg)
     g_list_store_remove_all(G_LIST_STORE(model));
 
     struct NotifyItem *ni = notify_req(100);
+    struct NotifyItem *first = ni;
 
     while (ni != NULL) {
 
@@ -142,6 +164,8 @@ int notifications_get_data_thread(void* arg)
         g_list_store_append(G_LIST_STORE(model), item);
         ni = ni->next;
     }
+    if (first)
+        notify_destroy(first);
     return 1;
 }
 
@@ -159,6 +183,8 @@ GObject* notifications_gui_init()
     GObject *w_list_view     = gtk_builder_get_object(builder, "notifications_lv");
     GObject *w_search_entry  = gtk_builder_get_object(builder, "notifications_se");
 
+    //g_object_unref(builder);
+
     // custom filter model that filters through all fields
     GtkFilter *filter = GTK_FILTER(gtk_custom_filter_new(custom_filter_cb, w_search_entry, NULL));
     GtkFilterListModel *filter_model = gtk_filter_list_model_new(G_LIST_MODEL(notification_model), filter);
@@ -171,6 +197,7 @@ GObject* notifications_gui_init()
     GtkListItemFactory *factory = gtk_signal_list_item_factory_new();
     g_signal_connect(factory, "setup", G_CALLBACK(setup_cb), NULL);
     g_signal_connect(factory, "bind",  G_CALLBACK(bind_cb), NULL);
+    g_signal_connect(factory, "teardown",  G_CALLBACK(teardown_cb), NULL);
 
     g_signal_connect(w_search_entry, "stop-search",  G_CALLBACK(on_stop_search), NULL);
     g_signal_connect(G_OBJECT(w_list_view), "activate", G_CALLBACK(on_run_app_cb), no_sel);
@@ -180,7 +207,7 @@ GObject* notifications_gui_init()
     g_signal_parse_name("stop-search", GTK_TYPE_SEARCH_ENTRY, &sig_id, NULL, 0);
 
     // find signal handler for instance with matching signal id
-    gulong sig_handler = g_signal_handler_find(G_OBJECT(w_search_entry), G_SIGNAL_MATCH_ID, sig_id, 0, NULL, NULL, NULL);
+    //gulong sig_handler = g_signal_handler_find(G_OBJECT(w_search_entry), G_SIGNAL_MATCH_ID, sig_id, 0, NULL, NULL, NULL);
 
     gtk_list_view_set_model(GTK_LIST_VIEW(w_list_view), GTK_SELECTION_MODEL(no_sel));
     gtk_list_view_set_factory(GTK_LIST_VIEW(w_list_view), GTK_LIST_ITEM_FACTORY(factory));

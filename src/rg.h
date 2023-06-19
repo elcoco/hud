@@ -35,5 +35,6 @@ void rg_test(char *search);
 //int rg_request(const char *search, struct RGLine *l, int amount);
 int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop);
 struct RGLine* rgline_init(struct RGLine *prev);
+void rgline_destroy(struct RGLine *l);
 
 #endif // !RG_H

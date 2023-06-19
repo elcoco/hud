@@ -8,7 +8,30 @@ struct NotifyItem* notify_init(struct NotifyItem *prev)
     }
     ni->next = NULL;
 
+    ni->body = NULL;
+    ni->msg = NULL;
+    ni->summary = NULL;
+    ni->app = NULL;
+
     return ni;
+}
+
+void notify_destroy(struct NotifyItem *ni)
+{
+    while (ni != NULL) {
+        struct NotifyItem *tmp = ni;
+        ni = ni->next;
+
+        if (tmp->body)
+            free(tmp->body);
+        if (tmp->msg)
+            free(tmp->msg);
+        if (tmp->summary)
+            free(tmp->summary);
+        if (tmp->app)
+            free(tmp->app);
+        free(tmp);
+    }
 }
 
 void notify_print(struct NotifyItem *ni)
@@ -76,6 +99,7 @@ struct NotifyItem* notify_req(int amount)
     get_all_from_pipe(pipe, &buf);
  
     JSONObject* rn = json_load(buf);
+    free(buf);
 
     if (rn == NULL || !rn->is_object) {
         fprintf(stderr, "Failed to get JSON from dunst");
@@ -116,5 +140,7 @@ struct NotifyItem* notify_req(int amount)
 
         msg = msg->next;
     }
+
+    json_obj_destroy(rn);
     return ni_head;
 }

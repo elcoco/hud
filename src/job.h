@@ -13,6 +13,9 @@ struct Job {
     int id;
     int worker_running;
 
+    // signals that job can be freed
+    int job_done;
+
     // tell job to stop
     int do_stop;
 

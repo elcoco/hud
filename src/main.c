@@ -23,7 +23,7 @@
 
 // listener thread that handles window visibillity
 pthread_t thread_id;
-struct ThreadArgs *ta;
+struct ThreadArgs ta;
 
 struct State state;
 
@@ -91,6 +91,7 @@ int on_accept_cb(void* arg)
 static void setup_keys(GtkWidget *widget)
 {
     // keep track of stack page names so we can cycle them
+    // not going to free this, is needed for callbacks and won't change
     GList *names = NULL;
 
     // setup keyboard shortcuts
@@ -129,6 +130,7 @@ static void app_activate_cb(GtkApplication *app)
     GtkBuilder *builder = gtk_builder_new_from_resource("/resources/ui/gui.ui");
     GObject *win = gtk_builder_get_object(builder, "main_win");
     GObject *w_stack = gtk_builder_get_object(builder, "main_stack");
+
     gtk_window_set_application(GTK_WINDOW(win), app);
 
     if (state.hide_on_close) {
@@ -137,25 +139,25 @@ static void app_activate_cb(GtkApplication *app)
         // Thread listens on unix domain socket for connections
         // If a connection is made it will show the window
         // When window is closed GTK will hide it instead of closing
-        ta = malloc(sizeof(struct ThreadArgs));
-        ta->cb = on_accept_cb;
-        ta->arg = (void*)win;
-        ta->stop = 0;
+        //ta = malloc(sizeof(struct ThreadArgs));
+        ta.cb = on_accept_cb;
+        ta.arg = (void*)win;
+        ta.stop = 0;
         printf("Starting listener thread: 0X%lX\n", thread_id);
-        pthread_create(&thread_id, NULL, listen_for_conn, (void*)ta);
+        pthread_create(&thread_id, NULL, listen_for_conn, (void*)&ta);
     }
 
     // setup apps stackpage
-    GObject *w_apps = apps_gui_init();
-    GtkStackPage *w_stackpage_apps = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_apps));
-    gtk_stack_page_set_title(w_stackpage_apps, "Apps");
-    gtk_stack_page_set_name(w_stackpage_apps, "apps");
+    //GObject *w_apps = apps_gui_init();
+    //GtkStackPage *w_stackpage_apps = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_apps));
+    //gtk_stack_page_set_title(w_stackpage_apps, "Apps");
+    //gtk_stack_page_set_name(w_stackpage_apps, "apps");
     
-    // setup notification stackpage
-    GObject *w_notifications = notifications_gui_init();
-    GtkStackPage *w_stackpage_notifications = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_notifications));
-    gtk_stack_page_set_title(w_stackpage_notifications, "Notifications");
-    gtk_stack_page_set_name(w_stackpage_notifications, "notifications");
+    //// setup notification stackpage
+    //GObject *w_notifications = notifications_gui_init();
+    //GtkStackPage *w_stackpage_notifications = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_notifications));
+    //gtk_stack_page_set_title(w_stackpage_notifications, "Notifications");
+    //gtk_stack_page_set_name(w_stackpage_notifications, "notifications");
 
     GObject *w_search = search_gui_init();
     GtkStackPage *w_stackpage_search = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_search));
@@ -163,7 +165,7 @@ static void app_activate_cb(GtkApplication *app)
     gtk_stack_page_set_name(w_stackpage_search, "search");
 
 
-    gtk_stack_set_visible_child_name(GTK_STACK(w_stack), state.focus_page);
+    //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), state.focus_page);
 
     setup_keys(GTK_WIDGET(w_stack));
 
@@ -234,7 +236,7 @@ int main(int argc, char **argv)
     g_object_unref(app);
 
     if (state.hide_on_close == 1) {
-        ta->stop = 1;
+        ta.stop = 1;
         pthread_join(thread_id, NULL);
     }
     return stat;

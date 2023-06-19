@@ -26,7 +26,9 @@ struct _SearchItem {
 
 struct SearchResult {
     GListStore *model;
+    GtkListView *view;
     GtkLabel *label;
+    GtkSelectionModel *sel_model;
     int nfound;
     struct RGLine *result;
     char search_text[256];

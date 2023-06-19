@@ -7,8 +7,26 @@ struct RGLine* rgline_init(struct RGLine *prev)
     if (prev != NULL)
         prev->next = l;
     l->next = NULL;
+    l->path = NULL;
+    l->text = NULL;
 
     return l;
+}
+
+void rgline_destroy(struct RGLine *l)
+{
+    while (l != NULL) {
+        struct RGLine *tmp = l;
+        l = l->next;
+
+        if (tmp->path)
+            free(tmp->path);
+
+        if (tmp->text)
+            free(tmp->text);
+
+        free(tmp);
+    }
 }
 
 void rgline_print(struct RGLine *l)
@@ -88,8 +106,6 @@ int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop)
             continue;
         }
 
-        //printf(">>%s %s %f<<\n", (char*)(npath->value), (char*)(ntext->value), json_get_number(lineno));
-        
         // connect next in linked list
         if (nfound != 0)
             tmp = rgline_init(tmp);
@@ -97,7 +113,6 @@ int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop)
         assert(npath->value != NULL);
         assert(ntext->value != NULL);
         assert(lineno->value != NULL);
-
 
         tmp->path = strdup(npath->value);
         tmp->text = strdup(ntext->value);

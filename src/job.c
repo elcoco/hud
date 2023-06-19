@@ -7,6 +7,7 @@ struct Job* job_init(int(*handle_data_cb)(void *arg), void*(*worker_cb)(void *ar
     struct Job* j = malloc(sizeof(struct Job));
     j->worker_running = 0;
     j->do_stop = 0;
+    j->job_done = 0;
 
     // this is where the long running task is
     j->worker_cb = worker_cb;
@@ -28,6 +29,17 @@ struct JobPool* pool_init()
     return pool;
 }
 
+void pool_destroy(struct JobPool *pool)
+{
+    GList *j = pool->jobs;
+    while (j != NULL) {
+        GList* tmp = j;
+        j = j->next;
+        job_destroy(tmp->data);
+    }
+    g_list_free(j);
+}
+
 void job_run(struct Job *j)
 {
     g_timeout_add(100, job_manager_thread, j);
@@ -43,6 +55,27 @@ void pool_add_job(struct JobPool* pool, struct Job *j)
         pool->jobs = g_list_append(pool->jobs, j);
 }
 
+void pool_remove_jobs(struct JobPool *pool)
+{
+    GList *item = g_list_last(pool->jobs);
+
+    while (item != NULL) {
+        struct Job* j = item->data;
+
+        GList *tmp = item;
+
+        item = item->prev;
+
+        if (j->job_done) {
+            printf("Removing finished job: %d left: %d\n", j->id, g_list_length(pool->jobs));
+            job_destroy(j);
+            pool->jobs = g_list_delete_link(pool->jobs, tmp);
+
+        }
+        
+    }
+}
+
 void pool_kill_all(struct JobPool *pool)
 {
     /* Tell all jobs to die!!! */
@@ -56,8 +89,10 @@ void pool_kill_all(struct JobPool *pool)
             j->do_stop = 1;
             printf(">>>>>>>>>SETTING DO STOP %d\n", j->id);
         }
+
         item = item->next;
     }
+    pool_remove_jobs(pool);
 }
 
 int job_manager_thread(void *arg)
@@ -77,6 +112,7 @@ int job_manager_thread(void *arg)
     }
     if (!j->worker_running) {
         j->handle_data_cb(j);
+        j->job_done = 1;
         return G_SOURCE_REMOVE;
     }
 

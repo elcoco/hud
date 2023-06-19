@@ -30,5 +30,6 @@ struct NotifyItem {
 struct NotifyItem* notify_req(int amount);
 void notify_test(int amount);
 struct NotifyItem* notify_init(struct NotifyItem *prev);
+void notify_destroy(struct NotifyItem *ni);
 
 #endif // !NOTIFICATIONS_H

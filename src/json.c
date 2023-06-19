@@ -264,7 +264,7 @@ char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_
     unwanted_lst = (unwanted_lst) ? unwanted_lst : "";
 
     while (1) {
-        if (buf_pos >= buf_size) {
+        if (buf != NULL && buf_pos >= buf_size) {
             buf_size += grow_amount;
             *buf = realloc(*buf, buf_size+1);
         }
@@ -276,12 +276,13 @@ char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_
             if (count_backslashes(pos) % 2 == 0)
                 break;
         }
-        if (strchr(unwanted_lst, *(pos->c)))
-            return -1;
+        if (strchr(unwanted_lst, *(pos->c))) {
+            goto cleanup_on_err;
+        }
 
         if (expected_lst != NULL) {
             if (!strchr(expected_lst, *(pos->c)))
-                return -1;
+                goto cleanup_on_err;
         }
         if (buf != NULL && !strchr(ignore_lst, *(pos->c)))
             (*buf)[buf_pos] = *(pos->c);
@@ -295,6 +296,11 @@ char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_
 
     char ret = *(pos->c);
     return ret;
+
+cleanup_on_err:
+    if (buf != NULL)
+        free(buf);
+    return -1;
 }
 
 JSONObject* json_object_init(JSONObject* parent)

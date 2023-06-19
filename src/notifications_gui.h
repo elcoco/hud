@@ -14,9 +14,9 @@
 G_DECLARE_FINAL_TYPE(NotificationItem, notification_item, NOTIFICATION, ITEM, GObject)
 struct _NotificationItem {
     GObject parent_instance;
-    const char *body;
-    const char *app;
-    const char *summary;
+    char *body;
+    char *app;
+    char *summary;
     time_t ts;
     GAppInfo *app_info;
 };

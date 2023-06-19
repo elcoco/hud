@@ -57,6 +57,7 @@ static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoi
     //GObject *text_lb          = gtk_builder_get_object(builder, "search_item_text_lb");
 
     gtk_list_item_set_child(listitem, GTK_WIDGET(box));
+    //g_object_unref(builder);
 }
 
 static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
@@ -105,6 +106,7 @@ int data_handle_cb(void *arg)
     }
 
     struct RGLine *l = result->result;
+    struct RGLine *first = l;
     while (l != NULL) {
         SearchItem *item = search_item_new(l);
         g_list_store_append(G_LIST_STORE(model), item);
@@ -120,6 +122,9 @@ int data_handle_cb(void *arg)
 
     gtk_label_set_text(GTK_LABEL(label), buf);
     printf("%s\n", buf);
+
+    rgline_destroy(first);
+    free(result);
 
     return 1;
 }
@@ -150,12 +155,24 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
     pool_kill_all(pool);
     GList *args = user_data;
     GtkSearchEntry *search_entry = GTK_SEARCH_ENTRY(g_list_nth(args, 2)->data);;
+    GListStore *model = G_LIST_STORE(g_list_nth(args, 0)->data);;
+    GtkLabel *label = GTK_LABEL(g_list_nth(args, 1)->data);
+    const char *text = gtk_editable_get_text(GTK_EDITABLE(search_entry));
+
+    if (!strlen(text)) {
+        g_list_store_remove_all(G_LIST_STORE(model));
+        gtk_label_set_text(GTK_LABEL(label), "");
+        return;
+    }
 
     struct SearchResult *result = malloc(sizeof(struct SearchResult));
-    strcpy(result->search_text, gtk_editable_get_text(GTK_EDITABLE(search_entry)));
+    strcpy(result->search_text, text);
     result->nfound = 0;
-    result->model = G_LIST_STORE(g_list_nth(args, 0)->data);;
-    result->label = GTK_LABEL(g_list_nth(args, 1)->data);
+    result->model = model;
+    result->label = label;
+    result->view = GTK_LIST_VIEW(g_list_nth(args, 3)->data);
+    result->sel_model = GTK_SELECTION_MODEL(g_list_nth(args, 4)->data);
+
     struct Job *j = job_init(data_handle_cb, worker_thread, result);
     pool_add_job(pool, j);
     job_run(j);
@@ -176,12 +193,16 @@ GObject* search_gui_init()
     GObject *w_search_entry  = gtk_builder_get_object(builder, "search_se");
     GObject *lb_status       = gtk_builder_get_object(builder, "search_status_lb");
 
+    //g_object_unref(builder);
+
     GtkNoSelection *no_sel = gtk_no_selection_new(G_LIST_MODEL(search_model));
 
     // connect search input via callback to update model on change
     GList *args = g_list_append(NULL, search_model);
     args = g_list_append(args, lb_status);
     args = g_list_append(args, w_search_entry);
+    args = g_list_append(args, w_list_view);
+    args = g_list_append(args, no_sel);
     g_signal_connect(G_OBJECT(w_search_entry), "search-changed", G_CALLBACK(search_entry_changed_cb), args);
 
     // factory creates widgets to connect model to view

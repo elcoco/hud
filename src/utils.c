@@ -129,10 +129,12 @@ GAppInfo* find_appinfo(const char *app_name)
         const char *name = g_app_info_get_name(app_info);
 
         if (strcmp(name, app_name) == 0) {
-            match = app_info;
+            match = g_app_info_dup(app_info);
             break;
         }
+        g_object_unref(app_info);
         app = app->next;
     }
+    g_list_free(apps);
     return match;
 }
