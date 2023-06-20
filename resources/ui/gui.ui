@@ -177,4 +177,7 @@
       </object>
     </child>
   </object>
+  <object class="GtkBox" id="dashboard_main_box">
+    <property name="orientation">vertical</property>
+  </object>
 </interface>

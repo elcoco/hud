@@ -6,6 +6,8 @@
 #include "notifications_gui.h"
 #include "apps_gui.h"
 #include "search_gui.h"
+#include "dashboard_gui.h"
+
 #include "sock.h"
 #include "state.h"
 #include "module.h"
@@ -128,6 +130,37 @@ static void setup_keys(GtkWidget *widget)
                                                           gtk_callback_action_new(on_focus_tab_prev_cb, names, NULL)));
 }
 
+gboolean on_get_focus_cb(GtkWidget *widget, gpointer data)
+{
+    struct Module *m = data;
+    module_unlock(m);
+    return 1;
+}
+
+gboolean on_lost_focus_cb(GtkWidget *widget, gpointer data)
+{
+    struct Module *m = data;
+    module_lock(m);
+    return 1;
+}
+
+gboolean on_stack_moved_focus_cb(GtkWidget *widget, GObject *pspec, gpointer data)
+{
+    /* lock all modules except for the visible one */
+    const char *name = gtk_stack_get_visible_child_name(GTK_STACK(widget));
+    struct Module *m = data;
+
+    while (m != NULL) {
+        if (strcmp(m->name, name) == 0)
+            module_unlock(m);
+        else
+            module_lock(m);
+        m = m->next;
+    }
+
+    return 1;
+}
+
 static void app_activate_cb(GtkApplication *app)
 {
 
@@ -154,21 +187,26 @@ static void app_activate_cb(GtkApplication *app)
     }
 
 
-    m = module_init(NULL, "apps", apps_gui_init, NULL);
+    m = module_init(NULL, "apps",          apps_gui_init, NULL);
     m = module_init(m,    "notifications", notifications_gui_init, NULL);
-    m = module_init(m,    "search", search_gui_init, NULL);
+    m = module_init(m,    "search",        search_gui_init, NULL);
+//    m = module_init(m,    "dashboard",     dashboard_gui_init, NULL);
 
     struct Module *tmp = m->head;
 
     while (tmp != NULL) {
         module_activate(tmp);
+
         GtkStackPage *page = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(tmp->widget));
         gtk_stack_page_set_title(page, tmp->name);
         gtk_stack_page_set_name(page, tmp->name);
-        
         tmp = tmp->next;
     }
     
+    // lock all modules except for visible one (lock threads/running processes)
+    on_stack_moved_focus_cb(GTK_WIDGET(w_stack), NULL, m->head);
+    g_signal_connect (GTK_STACK(w_stack), "notify::visible-child", G_CALLBACK (on_stack_moved_focus_cb), m->head);
+
     module_debug(m);
 
     //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), state.focus_page);

@@ -18,6 +18,8 @@ struct Module {
 
     GObject*(*init_cb)(struct Module*);
     void *args;
+
+    _Atomic int lock;
 };
 
 struct Module* module_init(struct Module *m_prev, const char *name, GObject*(*init_cb)(struct Module*), void* args);
@@ -28,6 +30,8 @@ void module_activate(struct Module *m);
 void module_deactivate(struct Module *m);
 void module_debug(struct Module *m);
 
-
+void module_lock(struct Module *m);
+void module_unlock(struct Module *m);
+int module_is_locked(struct Module *m);
 
 #endif // !MODULE_H

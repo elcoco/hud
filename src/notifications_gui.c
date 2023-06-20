@@ -135,6 +135,8 @@ gboolean on_stop_search(GtkWidget *widget, gpointer data)
 
 }
 
+
+
 static void on_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
 {
     GListModel *model = G_LIST_MODEL(user_data);
@@ -149,9 +151,13 @@ static void on_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
     //g_app_info_launch(app_info, NULL, NULL, NULL);
 }
 
-int notifications_get_data_thread(void* arg)
+int notifications_get_data_thread(void *args)
 {
-    GListModel *model = arg;
+    GListModel *model = G_LIST_MODEL(g_list_nth(args, 0)->data);
+    struct Module *m = g_list_nth(args, 1)->data;
+
+    if (module_is_locked(m))
+        return 1;
 
     g_list_store_remove_all(G_LIST_STORE(model));
 
@@ -202,6 +208,9 @@ GObject* notifications_gui_init(struct Module *m)
     g_signal_connect(w_search_entry, "stop-search",  G_CALLBACK(on_stop_search), NULL);
     g_signal_connect(G_OBJECT(w_list_view), "activate", G_CALLBACK(on_run_app_cb), no_sel);
 
+    //g_signal_connect(GTK_WIDGET(w_vbox), "focus-in-event", G_CALLBACK(notification_on_get_focus_cb), m);
+    //g_signal_connect(GTK_WIDGET(w_vbox), "focus-in-event", G_CALLBACK(notification_on_lost_focus_cb), m);
+
     // find signal id for type/signal
     guint sig_id;
     g_signal_parse_name("stop-search", GTK_TYPE_SEARCH_ENTRY, &sig_id, NULL, 0);
@@ -215,8 +224,11 @@ GObject* notifications_gui_init(struct Module *m)
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(w_scroll_window), GTK_WIDGET(w_list_view));
 
     // Run function without blocking main thread
-    notifications_get_data_thread(notification_model);
-    g_timeout_add(NOTIFICATION_UPDATE_INTERVAL_MS, notifications_get_data_thread, notification_model);
+    GList *args = g_list_append(NULL, notification_model);
+    args = g_list_append(args, m);
+
+    notifications_get_data_thread(args);
+    g_timeout_add(NOTIFICATION_UPDATE_INTERVAL_MS, notifications_get_data_thread, args);
 
     return w_vbox;
 }

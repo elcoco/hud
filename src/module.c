@@ -1,5 +1,8 @@
 #include "module.h"
 
+
+
+
 static struct Module* module_get_head(struct Module *m);
 
 
@@ -8,6 +11,7 @@ struct Module* module_init(struct Module *m_prev, const char *name, GObject*(*in
     struct Module *m = malloc(sizeof(struct Module));
     m->name = strdup(name);
     m->widget = NULL;
+    m->lock = 0;
     m->next = NULL;
     m->prev = NULL;
 
@@ -97,4 +101,21 @@ void module_activate(struct Module *m)
 void module_deactivate(struct Module *m)
 {
     printf("Deactivate module: %s\n", m->name);
+}
+
+void module_lock(struct Module *m)
+{
+    printf("%s: LOCK\n", m->name);
+    m->lock = 1;
+}
+
+void module_unlock(struct Module *m)
+{
+    printf("%s: UNLOCK\n", m->name);
+    m->lock = 0;
+}
+
+int module_is_locked(struct Module *m)
+{
+    return m->lock;
 }
