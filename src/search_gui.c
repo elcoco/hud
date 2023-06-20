@@ -178,7 +178,7 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
     job_run(j);
 }
 
-GObject* search_gui_init()
+GObject* search_gui_init(struct Module *m)
 {
     pool = pool_init();
 
@@ -192,6 +192,8 @@ GObject* search_gui_init()
     GObject *w_list_view     = gtk_builder_get_object(builder, "search_lv");
     GObject *w_search_entry  = gtk_builder_get_object(builder, "search_se");
     GObject *lb_status       = gtk_builder_get_object(builder, "search_status_lb");
+
+    gtk_search_entry_set_search_delay(GTK_SEARCH_ENTRY(w_search_entry), SEARCH_ENTRY_DELAY);
 
     //g_object_unref(builder);
 

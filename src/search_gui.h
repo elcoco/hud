@@ -10,10 +10,12 @@
 #include "rg.h"
 #include "utils.h"
 #include "job.h"
+#include "module.h"
 
 #define RG_AMOUNT_RESULTS 1000
 #define SEARCH_UI_PATH "/resources/ui/gui.ui"
 #define SEARCH_ITEM_UI_PATH "/resources/ui/gui.ui"
+#define SEARCH_ENTRY_DELAY 500
 
 #define SEARCH_TYPE_ITEM (search_item_get_type ())
 G_DECLARE_FINAL_TYPE(SearchItem, search_item, SEARCH, ITEM, GObject)
@@ -35,7 +37,7 @@ struct SearchResult {
 };
 
 
-GObject* search_gui_init();
+GObject* search_gui_init(struct Module*);
 
 
 #endif // !GUI_H

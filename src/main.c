@@ -8,6 +8,7 @@
 #include "search_gui.h"
 #include "sock.h"
 #include "state.h"
+#include "module.h"
 
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
@@ -26,6 +27,9 @@ pthread_t thread_id;
 struct ThreadArgs ta;
 
 struct State state;
+
+// store all modules here
+struct Module *m;
 
 static gboolean on_switch_stackpage_cb(GtkWidget *widget, GVariant *args, gpointer data)
 {
@@ -126,6 +130,8 @@ static void setup_keys(GtkWidget *widget)
 
 static void app_activate_cb(GtkApplication *app)
 {
+
+
     //GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
     GtkBuilder *builder = gtk_builder_new_from_resource("/resources/ui/gui.ui");
     GObject *win = gtk_builder_get_object(builder, "main_win");
@@ -147,23 +153,23 @@ static void app_activate_cb(GtkApplication *app)
         pthread_create(&thread_id, NULL, listen_for_conn, (void*)&ta);
     }
 
-    // setup apps stackpage
-    //GObject *w_apps = apps_gui_init();
-    //GtkStackPage *w_stackpage_apps = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_apps));
-    //gtk_stack_page_set_title(w_stackpage_apps, "Apps");
-    //gtk_stack_page_set_name(w_stackpage_apps, "apps");
+
+    m = module_init(NULL, "apps", apps_gui_init, NULL);
+    m = module_init(m,    "notifications", notifications_gui_init, NULL);
+    m = module_init(m,    "search", search_gui_init, NULL);
+
+    struct Module *tmp = m->head;
+
+    while (tmp != NULL) {
+        module_activate(tmp);
+        GtkStackPage *page = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(tmp->widget));
+        gtk_stack_page_set_title(page, tmp->name);
+        gtk_stack_page_set_name(page, tmp->name);
+        
+        tmp = tmp->next;
+    }
     
-    //// setup notification stackpage
-    //GObject *w_notifications = notifications_gui_init();
-    //GtkStackPage *w_stackpage_notifications = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_notifications));
-    //gtk_stack_page_set_title(w_stackpage_notifications, "Notifications");
-    //gtk_stack_page_set_name(w_stackpage_notifications, "notifications");
-
-    GObject *w_search = search_gui_init();
-    GtkStackPage *w_stackpage_search = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(w_search));
-    gtk_stack_page_set_title(w_stackpage_search, "Search");
-    gtk_stack_page_set_name(w_stackpage_search, "search");
-
+    module_debug(m);
 
     //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), state.focus_page);
 

@@ -169,7 +169,7 @@ int notifications_get_data_thread(void* arg)
     return 1;
 }
 
-GObject* notifications_gui_init()
+GObject* notifications_gui_init(struct Module *m)
 {
 
 

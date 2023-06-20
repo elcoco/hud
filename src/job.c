@@ -57,6 +57,7 @@ void pool_add_job(struct JobPool* pool, struct Job *j)
 
 void pool_remove_jobs(struct JobPool *pool)
 {
+    /* Remove/free dead jobs from pool */
     GList *item = g_list_last(pool->jobs);
 
     while (item != NULL) {
@@ -72,7 +73,6 @@ void pool_remove_jobs(struct JobPool *pool)
             pool->jobs = g_list_delete_link(pool->jobs, tmp);
 
         }
-        
     }
 }
 

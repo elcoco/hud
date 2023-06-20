@@ -213,7 +213,7 @@ static gboolean event_key_pressed_cb(GtkEventControllerKey  *controller,
     return FALSE;
 }
 
-GObject* apps_gui_init()
+GObject* apps_gui_init(struct Module *m)
 {
     // create our custom model
     GListModel *app_model = app_model_new();

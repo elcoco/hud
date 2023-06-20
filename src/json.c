@@ -329,8 +329,12 @@ JSONObject* json_object_init(JSONObject* parent)
 
 void json_obj_destroy(JSONObject* jo)
 {
-    if (jo->dtype == JSON_OBJECT)
+    //if (jo->dtype == JSON_OBJECT)
+    //    free(jo->key);
+
+    if (jo->key != NULL)
         free(jo->key);
+
 
     if (jo->dtype == JSON_OBJECT || jo->dtype == JSON_ARRAY) {
 
