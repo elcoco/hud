@@ -35,7 +35,15 @@
 	(1,82,"GtkStackSwitcher",None,80,None,None,None,1),
 	(1,83,"GtkBox","search_status_box",69,None,None,None,2),
 	(1,84,"GtkLabel","search_status_lb",83,None,None,None,None),
-	(1,85,"GtkBox","dashboard_main_box",None,None,None,None,None)
+	(1,85,"GtkBox","dashboard_main_box",None,None,None,None,None),
+	(1,91,"GtkBox","mpris_player_box",None,None,None,None,None),
+	(1,92,"GtkBox",None,91,None,None,None,None),
+	(1,93,"GtkImage","mpris_artwork_image",92,None,None,None,None),
+	(1,94,"GtkBox",None,92,None,None,None,1),
+	(1,95,"GtkLabel","mpris_artist_lb",94,None,None,None,None),
+	(1,96,"GtkLabel","mpris_track_lb",94,None,None,None,1),
+	(1,97,"GtkBox",None,91,None,None,None,1),
+	(1,98,"GtkScale",None,97,None,None,None,1)
   </object>
   <object_property>
 	(1,38,"GtkOrientable","orientation","vertical",None,None,None,None,None),
@@ -105,6 +113,16 @@
 	(1,83,"GtkWidget","margin-bottom","5",None,None,None,None,None),
 	(1,83,"GtkWidget","margin-top","10",None,None,None,None,None),
 	(1,84,"GtkWidget","halign","center",None,None,None,None,None),
-	(1,85,"GtkOrientable","orientation","vertical",None,None,None,None,None)
+	(1,85,"GtkOrientable","orientation","vertical",None,None,None,None,None),
+	(1,91,"GtkOrientable","orientation","vertical",None,None,None,None,None),
+	(1,93,"GtkImage","icon-name","applications-science",None,None,None,None,None),
+	(1,93,"GtkImage","icon-size","large",None,None,None,None,None),
+	(1,94,"GtkOrientable","orientation","vertical",None,None,None,None,None),
+	(1,95,"GtkLabel","label","artist",None,None,None,None,None),
+	(1,95,"GtkWidget","halign","start",None,None,None,None,None),
+	(1,96,"GtkLabel","label","track",None,None,None,None,None),
+	(1,96,"GtkWidget","halign","start",None,None,None,None,None),
+	(1,98,"GtkScale","draw-value","True",None,None,None,None,None),
+	(1,98,"GtkWidget","hexpand","True",None,None,None,None,None)
   </object_property>
 </cambalache-project>

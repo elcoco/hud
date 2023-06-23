@@ -1,6 +1,7 @@
 // compile:
 // gcc -o dbus -Wall dbus.c `pkg-config --cflags dbus-1` `pkg-config --libs dbus-1
 //
+// thanks mariusor! => https://github.com/mariusor/mpris-ctl
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -14,6 +15,13 @@
 #define MPRIS_PLAYER_NAMESPACE     "org.mpris.MediaPlayer2"
 #define MPRIS_PLAYER_PATH          "/org/mpris/MediaPlayer2"
 #define MPRIS_PLAYER_INTERFACE     "org.mpris.MediaPlayer2.Player"
+
+#define MPRIS_METHOD_NEXT          "Next"
+#define MPRIS_METHOD_PREVIOUS      "Previous"
+#define MPRIS_METHOD_PLAY          "Play"
+#define MPRIS_METHOD_PAUSE         "Pause"
+#define MPRIS_METHOD_STOP          "Stop"
+#define MPRIS_METHOD_PLAY_PAUSE    "PlayPause"
 
 #define MPRIS_ARG_PLAYER_IDENTITY  "Identity"
 
@@ -317,21 +325,11 @@ static int extract_boolean_var(DBusMessageIter *iter, DBusError *error)
     return 0;
 }
 
-static int dbus_get_iter(DBusMessageIter *rootiter,
-                              const char *destination,
-                              const char *path,
-                              const char *interface,
-                              const char *method,
-                              const char *arg_interface,
-                              const char *arg_identity)
+DBusMessage* dbus_call_method(const char *destination, const char *path, const char *interface, const char *method, char **args)
 {
+    /* Call method and return reply message */
     static DBusConnection *conn = NULL;
-    DBusMessage* msg;
-    DBusMessage* reply = NULL;
-    DBusPendingCall* pending;
     DBusError err = {0};
-    int ret = 0;
-
     dbus_error_init(&err);
 
     if (conn == NULL) {
@@ -341,58 +339,38 @@ static int dbus_get_iter(DBusMessageIter *rootiter,
             goto cleanup_on_err;
         }
     }
-    /*
-    // connect to the system bus and check for errors
-    DBusConnection *conn = dbus_bus_get_private(DBUS_BUS_SESSION, &err);
-    if (dbus_error_is_set(&err)) {
-        fprintf(stderr, "DBus connection error(%s)\n", err.message);
-        goto cleanup_on_err;
-    }
-    */
-    if (conn == NULL) {
-        printf("Computer says no\n");
-        ret = -1;
-        goto cleanup_on_err;
-    }
+
+    DBusMessage* msg;
+    DBusMessage* reply = NULL;
+    DBusPendingCall* pending;
+    DBusMessage *ret = NULL;
 
     // create a new method call and check for errors
     msg = dbus_message_new_method_call(destination, path, interface, method);
     if (msg == NULL) {
         fprintf(stderr, "Failed to make new method call\n");
-        ret = -1;
         goto cleanup_on_err;
     }
 
-    if (arg_interface != NULL) {
-        DBusMessageIter params;
-        // append interface we want to get the property from
-        dbus_message_iter_init_append(msg, &params);
-        if (!dbus_message_iter_append_basic(&params, DBUS_TYPE_STRING, &arg_interface)) {
-            ret = -1;
-            goto cleanup_on_err;
-        }
-    }
+    if (args != NULL) {
+        char **arg = args;
+        while (*arg != NULL) {
+            printf("arg: %s\n", *arg);
 
-    if (arg_identity != NULL) {
-        DBusMessageIter params;
-        // append interface we want to get the property from
-        dbus_message_iter_init_append(msg, &params);
-        if (!dbus_message_iter_append_basic(&params, DBUS_TYPE_STRING, &arg_identity)) {
-            ret = -1;
-            goto cleanup_on_err;
+            DBusMessageIter params;
+            // append interface we want to get the property from
+            dbus_message_iter_init_append(msg, &params);
+            if (!dbus_message_iter_append_basic(&params, DBUS_TYPE_STRING, arg)) {
+                fprintf(stderr, "Failed to append argument to dbus method call\n");
+                goto cleanup_on_err;
+            }
+            arg++;
         }
     }
 
     // send message and get a handle for a reply
-    if (!dbus_connection_send_with_reply(conn, msg, &pending, DBUS_CONNECTION_TIMEOUT) || NULL == pending) {
+    if (!dbus_connection_send_with_reply(conn, msg, &pending, DBUS_CONNECTION_TIMEOUT) || pending == NULL) {
         fprintf(stderr, "Failed to send message\n");
-        ret = -1;
-        goto cleanup_on_err;
-
-    }
-
-    if (pending == NULL) {
-        ret = -1;
         goto cleanup_on_err;
     }
 
@@ -402,47 +380,55 @@ static int dbus_get_iter(DBusMessageIter *rootiter,
     dbus_pending_call_block(pending);
 
     // get the reply message
-    reply = dbus_pending_call_steal_reply(pending);
-    if (reply == NULL) {
+    if ((reply = dbus_pending_call_steal_reply(pending)) == NULL) {
         fprintf(stderr, "Failed to get reply\n");
-        ret = -1;
         goto cleanup_on_err;
     }
 
-    if (!dbus_message_iter_init(reply, rootiter)) {
-        fprintf(stderr, "Failed to get iter init\n");
-        ret = -1;
-        goto cleanup_on_err;
-    }
+    ret = reply;
 
 cleanup_on_err:
     if (pending)
         dbus_pending_call_unref(pending);
     if (msg)
         dbus_message_unref(msg);
+    if (dbus_error_is_set(&err))
+        dbus_error_free(&err);
+    return ret;
+}
+
+int mpris_player_load_identity(struct MprisPlayer *mp)
+{
+    int ret = 0;
+    DBusMessage *reply;
+    DBusMessageIter rootiter;
+    DBusError err;
+    dbus_error_init(&err);
+
+    printf("Loading identity for %s\n", mp->namespace);
+
+    char *args[] = {MPRIS_PLAYER_NAMESPACE, MPRIS_ARG_PLAYER_IDENTITY, NULL};
+    if ((reply = dbus_call_method(mp->namespace, MPRIS_PLAYER_PATH, DBUS_PROPERTIES_INTERFACE, DBUS_METHOD_GET, args)) == NULL) {
+        printf("No reply\n");
+        ret = -1;
+        goto cleanup_on_err;
+    }
+
+    if (!dbus_message_iter_init(reply, &rootiter)) {
+        fprintf(stderr, "Failed to get iter init\n");
+        ret = -1;
+        goto cleanup_on_err;
+    }
+
+    mp->properties.player_name = extract_string_var(&rootiter, &err);
+
+cleanup_on_err:
     if (reply)
         dbus_message_unref(reply);
     if (dbus_error_is_set(&err))
         dbus_error_free(&err);
 
     return ret;
-}
-
-int mpris_player_load_identity(struct MprisPlayer *mp)
-{
-    DBusMessageIter rootiter;
-    DBusError err;
-    dbus_error_init(&err);
-    printf("Loading identity for %s\n", mp->namespace);
-
-    if (dbus_get_iter(&rootiter, mp->namespace, MPRIS_PLAYER_PATH, DBUS_PROPERTIES_INTERFACE, DBUS_METHOD_GET, MPRIS_PLAYER_NAMESPACE, MPRIS_ARG_PLAYER_IDENTITY) < 0) {
-        fprintf(stderr, "Failed to get identity for %s\n", mp->namespace);
-        return -1;
-    }
-
-    mp->properties.player_name = extract_string_var(&rootiter, &err);
-
-    return 0;
 }
 
 void mpris_player_load_metadata(struct MprisPlayer *mp, DBusMessageIter *iter)
@@ -525,19 +511,31 @@ void mpris_player_load_metadata(struct MprisPlayer *mp, DBusMessageIter *iter)
 
 int mpris_player_load_properties(struct MprisPlayer *mp)
 {
+    int ret = 0;
+    DBusMessage *reply;
     DBusMessageIter rootiter;
     DBusError err;
     dbus_error_init(&err);
 
     printf("Loading properties for %s\n", mp->namespace);
 
-    if (dbus_get_iter(&rootiter, mp->namespace, MPRIS_PLAYER_PATH, DBUS_PROPERTIES_INTERFACE, DBUS_METHOD_GET_ALL, MPRIS_PLAYER_INTERFACE, NULL) < 0) {
-        fprintf(stderr, "Failed to get properties for %s\n", mp->namespace);
-        return -1;
+    char *args[] = {MPRIS_PLAYER_INTERFACE, NULL};
+    if ((reply = dbus_call_method(mp->namespace, MPRIS_PLAYER_PATH, DBUS_PROPERTIES_INTERFACE, DBUS_METHOD_GET_ALL, args)) == NULL) {
+        printf("No reply\n");
+        ret = -1;
+        goto cleanup_on_err;
     }
 
-    if (dbus_message_iter_get_arg_type(&rootiter) != DBUS_TYPE_ARRAY)
-        return -1;
+    if (!dbus_message_iter_init(reply, &rootiter)) {
+        fprintf(stderr, "Failed to get iter init\n");
+        ret = -1;
+        goto cleanup_on_err;
+    }
+
+    if (dbus_message_iter_get_arg_type(&rootiter) != DBUS_TYPE_ARRAY) {
+        ret = -1;
+        goto cleanup_on_err;
+    }
 
     DBusMessageIter arrayElementIter;
     dbus_message_iter_recurse(&rootiter, &arrayElementIter);
@@ -603,22 +601,37 @@ int mpris_player_load_properties(struct MprisPlayer *mp)
         }
         dbus_message_iter_next(&arrayElementIter);
     }
-    return 0;
 
+cleanup_on_err:
+    if (reply)
+        dbus_message_unref(reply);
+    if (dbus_error_is_set(&err))
+        dbus_error_free(&err);
+    return ret;
 }
 
 struct MprisPlayer* mpris_players_load()
 {
     DBusMessageIter rootiter;
+    DBusMessage *reply;
+    DBusError err = {0};
+    dbus_error_init(&err);
 
     int cnt = 0;
 
-    struct MprisPlayer* prev = NULL;
-    struct MprisPlayer* mp = NULL;
-    struct MprisPlayer* mp_head = NULL;
+    struct MprisPlayer *prev = NULL;
+    struct MprisPlayer *mp = NULL;
+    struct MprisPlayer *mp_head = NULL;
+    struct MprisPlayer *ret = NULL;
 
-    if (dbus_get_iter(&rootiter, DBUS_DESTINATION, DBUS_PATH, DBUS_INTERFACE, DBUS_METHOD_LIST_NAMES, NULL, NULL) < 0)
-        return NULL;
+    if ((reply = dbus_call_method(DBUS_DESTINATION, DBUS_PATH, DBUS_INTERFACE, DBUS_METHOD_LIST_NAMES, NULL)) == NULL) {
+        goto cleanup_on_err;
+    }
+
+    if (!dbus_message_iter_init(reply, &rootiter)) {
+        fprintf(stderr, "Failed to get iter init\n");
+        goto cleanup_on_err;
+    }
 
     if (dbus_message_iter_get_arg_type(&rootiter) != DBUS_TYPE_ARRAY)
         return NULL;
@@ -645,8 +658,6 @@ struct MprisPlayer* mpris_players_load()
             break;
         }
         dbus_message_iter_next(&arrayElementIter);
-
-
     }
     mp = mp_head;
     while (mp != NULL) {
@@ -660,20 +671,60 @@ struct MprisPlayer* mpris_players_load()
         mp = mp->next;
     }
 
+    ret = mp_head;
+
+cleanup_on_err:
+    if (reply)
+        dbus_message_unref(reply);
+    if (dbus_error_is_set(&err))
+        dbus_error_free(&err);
+
     return mp_head;
 }
 
+int mpris_play(struct MprisPlayer *mp)
+{
+    dbus_call_method(mp->namespace, MPRIS_PLAYER_PATH, MPRIS_PLAYER_INTERFACE, MPRIS_METHOD_PLAY, NULL);
+}
 
+int mpris_pause(struct MprisPlayer *mp)
+{
+    dbus_call_method(mp->namespace, MPRIS_PLAYER_PATH, MPRIS_PLAYER_INTERFACE, MPRIS_METHOD_PAUSE, NULL);
+}
+
+int mpris_stop(struct MprisPlayer *mp)
+{
+    dbus_call_method(mp->namespace, MPRIS_PLAYER_PATH, MPRIS_PLAYER_INTERFACE, MPRIS_METHOD_STOP, NULL);
+}
+
+int mpris_prev(struct MprisPlayer *mp)
+{
+    dbus_call_method(mp->namespace, MPRIS_PLAYER_PATH, MPRIS_PLAYER_INTERFACE, MPRIS_METHOD_PREVIOUS, NULL);
+}
+
+int mpris_next(struct MprisPlayer *mp)
+{
+    dbus_call_method(mp->namespace, MPRIS_PLAYER_PATH, MPRIS_PLAYER_INTERFACE, MPRIS_METHOD_NEXT, NULL);
+}
+
+int mpris_toggle(struct MprisPlayer *mp)
+{
+    dbus_call_method(mp->namespace, MPRIS_PLAYER_PATH, MPRIS_PLAYER_INTERFACE, MPRIS_METHOD_PLAY_PAUSE, NULL);
+}
 
 int main()
 {
-    struct MprisPlayer *mp = mpris_players_load();
-    if (mp == NULL) {
+    struct MprisPlayer *mp_head = mpris_players_load();
+    if (mp_head == NULL) {
         printf("Failed to get players\n");
         return -1;
     }
 
-    mpris_players_debug(mp);
+    mpris_toggle(mp_head);
+
+    mpris_players_debug(mp_head);
+
+
 
     return 0;
 }

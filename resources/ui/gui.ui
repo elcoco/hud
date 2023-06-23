@@ -180,4 +180,44 @@
   <object class="GtkBox" id="dashboard_main_box">
     <property name="orientation">vertical</property>
   </object>
+  <object class="GtkBox" id="mpris_player_box">
+    <property name="orientation">vertical</property>
+    <child>
+      <object class="GtkBox">
+        <child>
+          <object class="GtkImage" id="mpris_artwork_image">
+            <property name="icon-name">applications-science</property>
+            <property name="icon-size">large</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkBox">
+            <property name="orientation">vertical</property>
+            <child>
+              <object class="GtkLabel" id="mpris_artist_lb">
+                <property name="halign">start</property>
+                <property name="label">artist</property>
+              </object>
+            </child>
+            <child>
+              <object class="GtkLabel" id="mpris_track_lb">
+                <property name="halign">start</property>
+                <property name="label">track</property>
+              </object>
+            </child>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkBox">
+        <child>
+          <object class="GtkScale">
+            <property name="draw-value">True</property>
+            <property name="hexpand">True</property>
+          </object>
+        </child>
+      </object>
+    </child>
+  </object>
 </interface>

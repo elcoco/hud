@@ -3,7 +3,7 @@ SRC := src
 OBJ := obj
 LIBS   := -lm -lpthread
 PKGCONFIG = $(shell which pkg-config)
-CFLAGS = -g -Wall $(shell $(PKGCONFIG) --cflags gtk4)
+CFLAGS = -g -Wall $(shell $(PKGCONFIG) --cflags gtk4 --libs dbus-1)
 LDLIBS = $(shell pkg-config --libs gtk4)
 CC := cc
 

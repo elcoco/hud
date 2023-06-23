@@ -7,6 +7,7 @@
 #include "apps_gui.h"
 #include "search_gui.h"
 #include "dashboard_gui.h"
+#include "mpris_gui.h"
 
 #include "sock.h"
 #include "state.h"
@@ -189,6 +190,7 @@ static void app_activate_cb(GtkApplication *app)
     m = module_init(NULL, "apps",          apps_gui_init, NULL);
     m = module_init(m,    "notifications", notifications_gui_init, NULL);
     m = module_init(m,    "search",        search_gui_init, NULL);
+    m = module_init(m,    "mpris",         mpris_gui_init, NULL);
 //    m = module_init(m,    "dashboard",     dashboard_gui_init, NULL);
 
     struct Module *tmp = m->head;
