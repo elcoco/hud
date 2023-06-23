@@ -1,4 +1,5 @@
 SRC := src
+#VPATH = src:src/modules/apps
 OBJ := obj
 LIBS   := -lm -lpthread
 PKGCONFIG = $(shell which pkg-config)
@@ -10,6 +11,7 @@ $(shell mkdir -p $(OBJ))
 NAME := $(shell basename $(shell pwd))
 
 SOURCES := $(wildcard $(SRC)/*.c) $(wildcard $(SRC)/*.c) 
+#SOURCES=$(shell find src -type f -iname '*.c')
 OBJECTS := $(patsubst $(SRC)/%.c, $(OBJ)/%.o, $(SOURCES))
 
 all: $(OBJECTS)

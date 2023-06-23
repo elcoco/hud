@@ -11,6 +11,7 @@
 #include "sock.h"
 #include "state.h"
 #include "module.h"
+//#include "pulse.h"
 
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
@@ -163,8 +164,6 @@ gboolean on_stack_moved_focus_cb(GtkWidget *widget, GObject *pspec, gpointer dat
 
 static void app_activate_cb(GtkApplication *app)
 {
-
-
     //GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
     GtkBuilder *builder = gtk_builder_new_from_resource("/resources/ui/gui.ui");
     GObject *win = gtk_builder_get_object(builder, "main_win");
@@ -205,11 +204,14 @@ static void app_activate_cb(GtkApplication *app)
     
     // lock all modules except for visible one (lock threads/running processes)
     on_stack_moved_focus_cb(GTK_WIDGET(w_stack), NULL, m->head);
-    g_signal_connect (GTK_STACK(w_stack), "notify::visible-child", G_CALLBACK (on_stack_moved_focus_cb), m->head);
+    g_signal_connect(GTK_STACK(w_stack), "notify::visible-child", G_CALLBACK(on_stack_moved_focus_cb), m->head);
 
     module_debug(m);
 
     //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), state.focus_page);
+    
+    GtkRecentManager *manager = gtk_recent_manager_get_default ();
+    
 
     setup_keys(GTK_WIDGET(w_stack));
 

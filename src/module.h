@@ -32,6 +32,6 @@ void module_debug(struct Module *m);
 
 void module_lock(struct Module *m);
 void module_unlock(struct Module *m);
-int module_is_locked(struct Module *m);
+int  module_is_locked(struct Module *m);
 
 #endif // !MODULE_H

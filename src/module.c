@@ -1,6 +1,5 @@
 #include "module.h"
-
-
+#include "gobject/gmarshal.h"
 
 
 static struct Module* module_get_head(struct Module *m);
@@ -24,6 +23,9 @@ struct Module* module_init(struct Module *m_prev, const char *name, GObject*(*in
     }
 
     m->head = module_get_head(m);
+
+    //g_signal_new("module-lock", G_TYPE_NONE, G_SIGNAL_RUN_FIRST, 0, NULL, NULL, g_cclosure_marshal_VOID__INT, G_TYPE_NONE, 1, G_TYPE_INT);
+
     return m;
 }
 
