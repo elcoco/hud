@@ -8,12 +8,21 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <assert.h>
 
 #include <dbus/dbus.h>
+#include <glib.h>
+#include <gio/gio.h>
 
+#include "mpris_gdbus.h"
+
+// custom assert macro with formatted message and ui cleanup
+#define clean_errno() (errno == 0 ? "None" : strerror(errno))
+#define log_error(M, ...) fprintf(stderr, "[ERROR] (%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
+#define assertf(A, M, ...) if(!(A)) {log_error(M, ##__VA_ARGS__); assert(A); }
 
 #define MPRIS_PLAYER_NAMESPACE     "org.mpris.MediaPlayer2"
-#define MPRIS_PLAYER_PATH          "/org/mpris/MediaPlayer2"
+#define MPRIS_PLAYER_OBJECT_PATH   "/org/mpris/MediaPlayer2"
 #define MPRIS_PLAYER_INTERFACE     "org.mpris.MediaPlayer2.Player"
 
 #define MPRIS_METHOD_NEXT          "Next"
@@ -22,21 +31,23 @@
 #define MPRIS_METHOD_PAUSE         "Pause"
 #define MPRIS_METHOD_STOP          "Stop"
 #define MPRIS_METHOD_PLAY_PAUSE    "PlayPause"
+#define MPRIS_METHOD_SEEK          "Seek"
+#define MPRIS_METHOD_SET_POSITION  "SetPosition"
 
 #define MPRIS_ARG_PLAYER_IDENTITY  "Identity"
 
-#define MPRIS_PNAME_PLAYBACKSTATUS "PlaybackStatus"
-#define MPRIS_PNAME_CANCONTROL     "CanControl"
-#define MPRIS_PNAME_CANGONEXT      "CanGoNext"
-#define MPRIS_PNAME_CANGOPREVIOUS  "CanGoPrevious"
-#define MPRIS_PNAME_CANPLAY        "CanPlay"
-#define MPRIS_PNAME_CANPAUSE       "CanPause"
-#define MPRIS_PNAME_CANSEEK        "CanSeek"
-#define MPRIS_PNAME_SHUFFLE        "Shuffle"
-#define MPRIS_PNAME_POSITION       "Position"
-#define MPRIS_PNAME_VOLUME         "Volume"
-#define MPRIS_PNAME_LOOPSTATUS     "LoopStatus"
-#define MPRIS_PNAME_METADATA       "Metadata"
+#define MPRIS_PROP_PLAYBACKSTATUS "PlaybackStatus"
+#define MPRIS_PROP_CANCONTROL     "CanControl"
+#define MPRIS_PROP_CANGONEXT      "CanGoNext"
+#define MPRIS_PROP_CANGOPREVIOUS  "CanGoPrevious"
+#define MPRIS_PROP_CANPLAY        "CanPlay"
+#define MPRIS_PROP_CANPAUSE       "CanPause"
+#define MPRIS_PROP_CANSEEK        "CanSeek"
+#define MPRIS_PROP_SHUFFLE        "Shuffle"
+#define MPRIS_PROP_POSITION       "Position"
+#define MPRIS_PROP_VOLUME         "Volume"
+#define MPRIS_PROP_LOOPSTATUS     "LoopStatus"
+#define MPRIS_PROP_METADATA       "Metadata"
 
  
 #define DBUS_DESTINATION           "org.freedesktop.DBus"
@@ -46,6 +57,7 @@
 #define DBUS_METHOD_LIST_NAMES     "ListNames"
 #define DBUS_METHOD_GET_ALL        "GetAll"
 #define DBUS_METHOD_GET            "Get"
+#define DBUS_METHOD_SET            "Set"
 
 #define MPRIS_METADATA_BITRATE      "bitrate"
 #define MPRIS_METADATA_ART_URL      "mpris:artUrl"
@@ -69,6 +81,13 @@
 #define DBUS_CONNECTION_TIMEOUT    100 //ms
                                        //
 #define MAX_PLAYERS 20
+
+enum PlayerStatus {
+    MPRIS_STATUS_PLAYING,
+    MPRIS_STATUS_STOPPED,
+    MPRIS_STATUS_PAUSED,
+    MPRIS_STATUS_UNKNOWN
+};
 
 struct MPRISMetaData {
     uint64_t length; // mpris specific
@@ -101,25 +120,30 @@ struct MPRISProperties {
     char *player_name;
     char *loop_status;
     char *playback_status;
+    enum PlayerStatus status;
 };
 
 struct MprisPlayer {
+    int id;
     struct MprisPlayer *next;
     char *namespace;
     struct MPRISMetaData metadata;
     struct MPRISProperties properties;
 };
 
-DBusMessage* dbus_call_method(const char *destination, const char *path, const char *interface, const char *method, char **args);
-int mpris_player_load_identity(struct MprisPlayer *mp);
-void mpris_player_load_metadata(struct MprisPlayer *mp, DBusMessageIter *iter);
-int mpris_player_load_properties(struct MprisPlayer *mp);
-struct MprisPlayer* mpris_players_load();
-int mpris_play(struct MprisPlayer *mp);
-int mpris_pause(struct MprisPlayer *mp);
-int mpris_stop(struct MprisPlayer *mp);
-int mpris_prev(struct MprisPlayer *mp);
-int mpris_next(struct MprisPlayer *mp);
-int mpris_toggle(struct MprisPlayer *mp);
+
+struct MprisPlayer* mpris_player_load_all();
+
+void mpris_player_play(char *namespace);
+void mpris_player_pause(char *namespace);
+void mpris_player_stop(char *namespace);
+void mpris_player_prev(char *namespace);
+void mpris_player_next(char *namespace);
+void mpris_player_toggle(char *namespace);
+void mpris_player_set_position(char *namespace, char *track_id, uint64_t pos);
+void mpris_player_seek(char *namespace, uint64_t pos);
+
+void mpris_player_debug_all(struct MprisPlayer *mp);
+void mpris_player_destroy_all(struct MprisPlayer *mp);
 
 #endif // !MPRIS_H

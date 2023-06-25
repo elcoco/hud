@@ -20,3 +20,6 @@ all: $(OBJECTS)
 $(OBJ)/%.o: $(SRC)/%.c
 	glib-compile-resources resources/gresource.xml --target=src/resources.c --generate-source
 	$(CC) -I$(SRC) $(CFLAGS) $(LIBS) $(LDLIBS) -c $< -o $@
+
+gen:
+	gdbus-codegen --generate-c-code mpris_gdbus --output-directory src --c-namespace mpris --interface-prefix org.mpris. src/org.mpris.MediaPlayer2.xml

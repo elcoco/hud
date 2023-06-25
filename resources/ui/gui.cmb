@@ -42,8 +42,12 @@
 	(1,94,"GtkBox",None,92,None,None,None,1),
 	(1,95,"GtkLabel","mpris_artist_lb",94,None,None,None,None),
 	(1,96,"GtkLabel","mpris_track_lb",94,None,None,None,1),
-	(1,97,"GtkBox",None,91,None,None,None,1),
-	(1,98,"GtkScale",None,97,None,None,None,1)
+	(1,97,"GtkBox",None,91,None,None,None,2),
+	(1,98,"GtkScale",None,97,None,None,None,None),
+	(1,100,"GtkBox",None,91,None,None,None,1),
+	(1,101,"GtkButton","mpris_toggle_btn",100,None,None,None,1),
+	(1,102,"GtkButton","mpris_next_btn",100,None,None,None,2),
+	(1,103,"GtkButton","mpris_prev_btn",100,None,None,None,None)
   </object>
   <object_property>
 	(1,38,"GtkOrientable","orientation","vertical",None,None,None,None,None),
@@ -123,6 +127,11 @@
 	(1,96,"GtkLabel","label","track",None,None,None,None,None),
 	(1,96,"GtkWidget","halign","start",None,None,None,None,None),
 	(1,98,"GtkScale","draw-value","True",None,None,None,None,None),
-	(1,98,"GtkWidget","hexpand","True",None,None,None,None,None)
+	(1,98,"GtkWidget","hexpand","True",None,None,None,None,None),
+	(1,100,"GtkWidget","halign","center",None,None,None,None,None),
+	(1,101,"GtkButton","icon-name","media-playback-start-symbolic",None,None,None,None,None),
+	(1,101,"GtkWidget","valign","center",None,None,None,None,None),
+	(1,102,"GtkButton","icon-name","media-skip-forward-symbolic",None,None,None,None,None),
+	(1,103,"GtkButton","icon-name","media-skip-backward-symbolic",None,None,None,None,None)
   </object_property>
 </cambalache-project>

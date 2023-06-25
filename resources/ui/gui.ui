@@ -211,6 +211,27 @@
     </child>
     <child>
       <object class="GtkBox">
+        <property name="halign">center</property>
+        <child>
+          <object class="GtkButton" id="mpris_prev_btn">
+            <property name="icon-name">media-skip-backward-symbolic</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="mpris_toggle_btn">
+            <property name="icon-name">media-playback-start-symbolic</property>
+            <property name="valign">center</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkButton" id="mpris_next_btn">
+            <property name="icon-name">media-skip-forward-symbolic</property>
+          </object>
+        </child>
+      </object>
+    </child>
+    <child>
+      <object class="GtkBox">
         <child>
           <object class="GtkScale">
             <property name="draw-value">True</property>
