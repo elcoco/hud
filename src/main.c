@@ -224,7 +224,7 @@ static void app_activate_cb(GtkApplication *app)
 void show_help()
 {
     printf("HUD :: Hud stuff\n");
-    printf("Optional args:");
+    printf("Optional args:\n");
     printf("  -f <name>     Focus page at start\n");
     printf("  -H            Hide window instead of close\n");
     printf("  -D            Debug\n");

@@ -1,161 +1,220 @@
 #include "mpris.h"
 #include "mpris_gdbus.h"
 
-// global dbus connection
-DBusConnection *global_conn = NULL;
-
-static int mpris_player_load_identity(struct MprisPlayer *mp);
-static void mpris_player_load_metadata(struct MprisPlayer *mp, DBusMessageIter *iter);
-static int mpris_player_load_properties(struct MprisPlayer *mp);
-static DBusMessage* dbus_call_method(const char *destination, const char *path, const char *interface, const char *method, char **args);
-
-static double extract_double_var(DBusMessageIter *iter, DBusError *error);
-static char* extract_string_var(DBusMessageIter *iter, DBusError *error);
-static int32_t extract_int32_var(DBusMessageIter *iter, DBusError *error);
-static int64_t extract_int64_var(DBusMessageIter *iter, DBusError *error);
-static int extract_boolean_var(DBusMessageIter *iter, DBusError *error);
+static struct MPRISPlayer* mpris_player_init(struct MPRISPlayer *prev, char *namespace);
+static int mpris_player_load(struct MPRISPlayer *mp);
+static int get_player_namespaces(char **buf, int max_players);
+static void mpris_player_set_string_from_gvariant(char **buf, GVariant *value, const char *default_value);
+static int mpris_player_set_string(char **buf, const char *value, const char *default_value);
+static struct MPRISPlayer* mpris_player_get_head(struct MPRISPlayer *mp);
+static struct MPRISPlayer* mpris_player_find_in_ll(struct MPRISPlayer *mp_head, const char *namespace);
 
 
-static struct MprisPlayer* mpris_player_init(struct MprisPlayer *prev, char *namespace)
+static struct MPRISPlayer* mpris_player_find_in_ll(struct MPRISPlayer *mp_head, const char *namespace)
 {
-    static int id = 0;
-
-    struct MprisPlayer *mp = malloc(sizeof(struct MprisPlayer));
-    mp->next = NULL;
-    if (prev)
-        prev->next = mp;
-
-    mp->id = id++;
-    mp->namespace = strdup(namespace);
-
-    mp->metadata.track_number = 0;
-    mp->metadata.bitrate = 0;
-    mp->metadata.disc_number = 0;
-    mp->metadata.length = 0;
-
-    mp->metadata.album_artist = strdup("unknown");
-    mp->metadata.composer = strdup("unknown");
-    mp->metadata.genre = strdup("unknown");
-    mp->metadata.artist = strdup("unknown");
-    mp->metadata.comment = NULL;
-    mp->metadata.track_id = NULL;
-    mp->metadata.album = strdup("unknown");
-    mp->metadata.content_created = NULL;
-    mp->metadata.title = strdup("unknown");
-    mp->metadata.url = NULL;
-    mp->metadata.art_url = NULL;
-
-    mp->properties.player_name = NULL;
-    mp->properties.loop_status = NULL;
-    mp->properties.playback_status = NULL;
-
-    mp->properties.position = 0;
-
-    return mp;
+    struct MPRISPlayer *mp = mp_head;
+    while (mp != NULL) {
+        if (strncmp(mp->namespace, namespace, strlen(namespace)) == 0) {
+            return mp;
+        }
+        mp = mp->next;
+    }
+    return NULL;
 }
 
-void mpris_player_destroy(struct MprisPlayer *mp)
+static struct MPRISPlayer *mpris_player_remove_old(struct MPRISPlayer *mp_head, char **namespaces, size_t len)
 {
+    /* Remove items from linked list that are not found in new data. */
+    struct MPRISPlayer *mp = mp_head;
+    while (mp != NULL) {
+        int found = 0;
+        for (int i=0 ; i<len ; i++) {
+            if (namespaces[i] == NULL)
+                break;
+            if (strncmp(mp->namespace, namespaces[i], strlen(namespaces[i])) == 0) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            //printf("REMOVING: %s\n", mp->namespace);
+            mp = mpris_player_destroy(mp);
+            mp_head = mp;
+            continue;
+        }
+
+        mp = mp->next;
+    }
+    return mp_head;
+}
+
+
+struct MPRISPlayer* mpris_player_load_all(struct MPRISPlayer *mp_head)
+{
+    /* Load all structs.
+     * if mp_head != NULL, search in linked list for existing structs and update them.
+     * If mp_head != NULL, the linked list will be matched against found dbus data and
+     *   items will be removed from linked list if necessary */
+
+    char *namespaces[MAX_PLAYERS+1] = {NULL};
+    get_player_namespaces(namespaces, MAX_PLAYERS);
+
+    // if a previous linked list was passed in we want to remove the items that are absent in the new data
+    // before updating everything
+    if (mp_head != NULL)
+        mp_head = mpris_player_remove_old(mp_head, namespaces, MAX_PLAYERS);
+
+    // find linked list tail so we can append new items if found
+    struct MPRISPlayer *mp_tail = mp_head;
+    while (mp_tail != NULL && mp_tail->next != NULL)
+        mp_tail = mp_tail->next;
+
+    for (int i=0 ; i<MAX_PLAYERS ; i++) {
+        if (namespaces[i] == NULL)
+            break;
+
+        // search linked list and update if there is a match
+        struct MPRISPlayer *mp_found = mpris_player_find_in_ll(mp_head, namespaces[i]);
+        if (mp_found != NULL) {
+            mpris_player_load(mp_found);
+        }
+        else {
+            mp_tail = mpris_player_init(mp_tail, namespaces[i]);
+            mpris_player_load(mp_tail);
+
+            if (mp_head == NULL)
+                mp_head = mp_tail;
+        }
+        free(namespaces[i]);
+    }
+
+    return mp_head;
+}
+
+struct MPRISPlayer* mpris_player_destroy(struct MPRISPlayer *mp)
+{
+    /* Destroy node in linked list and return head node
+     * If list is empty, return NULL */
+
+    // handle case where this is the current head, update all nodes with new head
+    if (mp->prev == NULL && mp->next != NULL) {
+        struct MPRISPlayer *head = mp->next;
+        struct MPRISPlayer *tmp = head;
+
+        // update head in linked list
+        while (tmp != NULL) {
+            tmp->head = head;
+            tmp = tmp->next;
+        }
+    }
+
+    struct MPRISPlayer *ret;
+
+    // node is head
+    if (mp->prev == NULL && mp->next != NULL)
+        ret = mp->next;
+
+    // node is only node
+    else if (mp->prev == NULL && mp->next == NULL)
+        ret = NULL;
+
+    else
+        ret = mpris_player_get_head(mp);
+
+    // disconnect node from linked list so we can safely free it
+    if (mp->prev) {
+        if (mp->next)
+            mp->prev->next = mp->next;
+        else
+            mp->prev->next = NULL;
+    }
+    else if (mp->next) {
+        mp->next->prev = NULL;
+    }
+
     free(mp->namespace);
+    free(mp->name);
 
-    free(mp->metadata.album_artist);
-    free(mp->metadata.composer);
-    free(mp->metadata.genre);
-    free(mp->metadata.artist);
-    free(mp->metadata.comment);
-    free(mp->metadata.track_id);
-    free(mp->metadata.album);
-    free(mp->metadata.content_created);
-    free(mp->metadata.title);
-    free(mp->metadata.url);
-    free(mp->metadata.art_url);
+    free(mp->metadata->album_artist);
+    free(mp->metadata->composer);
+    free(mp->metadata->genre);
+    free(mp->metadata->artist);
+    free(mp->metadata->comment);
+    free(mp->metadata->track_id);
+    free(mp->metadata->album);
+    free(mp->metadata->content_created);
+    free(mp->metadata->title);
+    free(mp->metadata->url);
+    free(mp->metadata->art_url);
+    free(mp->metadata);
 
-    free(mp->properties.player_name);
-    free(mp->properties.loop_status);
-    free(mp->properties.playback_status);
+    free(mp->properties->loop_status);
+    free(mp->properties->playback_status);
+    free(mp->properties);
+
+    free(mp->tracklist);
 
     free(mp);
+
+    return ret;
 }
 
-void mpris_player_destroy_all(struct MprisPlayer *mp)
+void mpris_player_destroy_all(struct MPRISPlayer *mp)
 {
     while (mp != NULL) {
-        struct MprisPlayer *tmp = mp;
+        struct MPRISPlayer *tmp = mp;
         mp = mp->next;
         mpris_player_destroy(tmp);
     }
 }
 
-struct MprisPlayer* mpris_player_load_all()
+void mpris_player_debug_all(struct MPRISPlayer *mp)
 {
-    DBusMessageIter rootiter;
-    DBusMessage *reply;
-    DBusError err = {0};
-    dbus_error_init(&err);
-
-    int cnt = 0;
-
-    struct MprisPlayer *prev = NULL;
-    struct MprisPlayer *mp = NULL;
-    struct MprisPlayer *mp_head = NULL;
-    struct MprisPlayer *ret = NULL;
-
-    if ((reply = dbus_call_method(DBUS_DESTINATION, DBUS_PATH, DBUS_INTERFACE, DBUS_METHOD_LIST_NAMES, NULL)) == NULL) {
-        goto cleanup_on_err;
-    }
-
-    if (!dbus_message_iter_init(reply, &rootiter)) {
-        fprintf(stderr, "Failed to get iter init\n");
-        goto cleanup_on_err;
-    }
-
-    if (dbus_message_iter_get_arg_type(&rootiter) != DBUS_TYPE_ARRAY)
-        return NULL;
-
-    DBusMessageIter arrayElementIter;
-
-    dbus_message_iter_recurse(&rootiter, &arrayElementIter);
-    while (cnt < MAX_PLAYERS) {
-
-        if (DBUS_TYPE_STRING == dbus_message_iter_get_arg_type(&arrayElementIter)) {
-            char *namespace = NULL;
-            dbus_message_iter_get_basic(&arrayElementIter, &namespace);
-            if (!strncmp(namespace, MPRIS_PLAYER_NAMESPACE, strlen(MPRIS_PLAYER_NAMESPACE))) {
-                mp = mpris_player_init(prev, namespace);
-                cnt++;
-
-                if (prev == NULL)
-                    mp_head = mp;
-
-                prev = mp;
-            }
-        }
-        if (!dbus_message_iter_has_next(&arrayElementIter)) {
-            break;
-        }
-        dbus_message_iter_next(&arrayElementIter);
-    }
-    mp = mp_head;
     while (mp != NULL) {
-        mpris_player_load_properties(mp);
+        printf("player: %s\n", mp->namespace);
+        printf("  name:              %s\n", mp->name);
+        printf("  properties\n");
+        printf("    volume:          %f\n", mp->properties->volume);
+        printf("    position:        %ld\n", mp->properties->position);
+        printf("    can_control:     %d\n", mp->properties->can_control);
+        printf("    can_go_next:     %d\n", mp->properties->can_go_next);
+        printf("    can_go_previous: %d\n", mp->properties->can_go_previous);
+        printf("    can_play:        %d\n", mp->properties->can_play);
+        printf("    can_pause:       %d\n", mp->properties->can_pause);
+        printf("    can_seek:        %d\n", mp->properties->can_seek);
+        printf("    shuffle:         %d\n", mp->properties->shuffle);
+        printf("    loop_status:     %s\n", mp->properties->loop_status);
+        printf("    playback_status: %s\n", mp->properties->playback_status);
+
+        printf("  meta data\n");
+        printf("    track_number:    %d\n", mp->metadata->track_number);
+        printf("    bitrate:         %d\n", mp->metadata->bitrate);
+        printf("    disc_number:     %d\n", mp->metadata->disc_number);
+        printf("    length:          %ld\n", mp->metadata->length);
+        printf("    album_artist:    %s\n", mp->metadata->album_artist);
+        printf("    composer:        %s\n", mp->metadata->composer);
+        printf("    genre:           %s\n", mp->metadata->genre);
+        printf("    artist:          %s\n", mp->metadata->artist);
+        printf("    comment:         %s\n", mp->metadata->comment);
+        printf("    track_id:        %s\n", mp->metadata->track_id);
+        printf("    album:           %s\n", mp->metadata->album);
+        printf("    content_created: %s\n", mp->metadata->content_created);
+        printf("    title:           %s\n", mp->metadata->title);
+        printf("    url:             %s\n", mp->metadata->url);
+        printf("    art_url:         %s\n", mp->metadata->art_url);
+        printf("\n");
+
         mp = mp->next;
     }
+}
 
-    mp = mp_head;
+void mpris_player_debug_all_short(struct MPRISPlayer *mp)
+{
+    int i=0;
     while (mp != NULL) {
-        mpris_player_load_identity(mp);
+        printf("%d: %s\n", i++, mp->namespace);
         mp = mp->next;
     }
-
-    ret = mp_head;
-
-cleanup_on_err:
-    if (reply)
-        dbus_message_unref(reply);
-    if (dbus_error_is_set(&err))
-        dbus_error_free(&err);
-
-    return mp_head;
 }
 
 void mpris_player_play(char *namespace)
@@ -269,458 +328,312 @@ void mpris_player_seek(char *namespace, uint64_t pos)
 {
 }
 
-void mpris_player_debug_all(struct MprisPlayer *mp)
+
+static struct MPRISPlayer* mpris_player_get_head(struct MPRISPlayer *mp)
 {
-    while (mp != NULL) {
-        printf("player: %s\n", mp->namespace);
-        printf("  properties\n");
-        printf("    volume:          %f\n", mp->properties.volume);
-        printf("    position:        %ld\n", mp->properties.position);
-        printf("    can_control:     %d\n", mp->properties.can_control);
-        printf("    can_go_next:     %d\n", mp->properties.can_go_next);
-        printf("    can_go_previous: %d\n", mp->properties.can_go_previous);
-        printf("    can_play:        %d\n", mp->properties.can_play);
-        printf("    can_pause:       %d\n", mp->properties.can_pause);
-        printf("    can_seek:        %d\n", mp->properties.can_seek);
-        printf("    shuffle:         %d\n", mp->properties.shuffle);
-        printf("    player_name:     %s\n", mp->properties.player_name);
-        printf("    loop_status:     %s\n", mp->properties.loop_status);
-        printf("    playback_status: %s\n", mp->properties.playback_status);
-
-        printf("  meta data\n");
-        printf("    track_number:    %d\n", mp->metadata.track_number);
-        printf("    bitrate:         %d\n", mp->metadata.bitrate);
-        printf("    disc_number:     %d\n", mp->metadata.disc_number);
-        printf("    length:          %ld\n", mp->metadata.length);
-        printf("    album_artist:    %s\n", mp->metadata.album_artist);
-        printf("    composer:        %s\n", mp->metadata.composer);
-        printf("    genre:           %s\n", mp->metadata.genre);
-        printf("    artist:          %s\n", mp->metadata.artist);
-        printf("    comment:         %s\n", mp->metadata.comment);
-        printf("    track_id:        %s\n", mp->metadata.track_id);
-        printf("    album:           %s\n", mp->metadata.album);
-        printf("    content_created: %s\n", mp->metadata.content_created);
-        printf("    title:           %s\n", mp->metadata.title);
-        printf("    url:             %s\n", mp->metadata.url);
-        printf("    art_url:         %s\n", mp->metadata.art_url);
-        printf("\n");
-
-        mp = mp->next;
-    }
+    while (mp->prev != NULL)
+        mp = mp->prev;
+    return mp;
 }
 
-static DBusConnection* dbus_get_connection()
+static struct MPRISPlayer* mpris_player_init(struct MPRISPlayer *prev, char *namespace)
 {
-    DBusError err = {0};
-    dbus_error_init(&err);
+    static int id = 0;
 
-    if (global_conn == NULL) {
-        global_conn = dbus_bus_get_private(DBUS_BUS_SESSION, &err);
-        if (dbus_error_is_set(&err))
-            fprintf(stderr, "DBus connection error(%s)\n", err.message);
+    struct MPRISPlayer *mp = malloc(sizeof(struct MPRISPlayer));
+    mp->metadata = malloc(sizeof(struct MPRISMetaData));
+    mp->properties = malloc(sizeof(struct MPRISProperties));
+    mp->tracklist = malloc(sizeof(struct MPRISTrackList));
+
+    mp->next = NULL;
+    mp->prev = NULL;
+    mp->head = NULL;
+
+    if (prev) {
+        prev->next = mp;
+        mp->prev = prev;
     }
 
-    if (dbus_error_is_set(&err))
-        dbus_error_free(&err);
+    mp->id = id++;
+    mp->namespace = strdup(namespace);
+    mp->name = strdup(MPRIS_METADATA_DEFAULT_STR);
 
-    return global_conn;
+    mp->metadata->track_number = MPRIS_METADATA_DEFAULT_UINT;
+    mp->metadata->bitrate = MPRIS_METADATA_DEFAULT_UINT;
+    mp->metadata->disc_number = MPRIS_METADATA_DEFAULT_UINT;
+    mp->metadata->length = MPRIS_METADATA_DEFAULT_UINT;
+
+    mp->metadata->album_artist = strdup(MPRIS_METADATA_DEFAULT_STR);
+    mp->metadata->composer = strdup(MPRIS_METADATA_DEFAULT_STR);
+    mp->metadata->genre = strdup(MPRIS_METADATA_DEFAULT_STR);
+    mp->metadata->artist = strdup(MPRIS_METADATA_DEFAULT_STR);
+    mp->metadata->comment = strdup(MPRIS_METADATA_DEFAULT_STR);
+    mp->metadata->track_id = strdup("/");
+    mp->metadata->album = strdup(MPRIS_METADATA_DEFAULT_STR);
+    mp->metadata->content_created = strdup(MPRIS_METADATA_DEFAULT_STR);
+    mp->metadata->title = strdup(MPRIS_METADATA_DEFAULT_STR);
+    mp->metadata->url = strdup("");
+    mp->metadata->art_url = strdup("");
+
+    mp->properties->loop_status = strdup(MPRIS_METADATA_DEFAULT_STR);
+    mp->properties->playback_status = NULL;
+    mp->properties->status = MPRIS_STATUS_UNKNOWN;
+
+    mp->properties->position = MPRIS_METADATA_DEFAULT_UINT;
+    mp->properties->volume = MPRIS_METADATA_DEFAULT_INT;
+
+    return mp;
 }
 
-static DBusMessage* dbus_call_method(const char *destination, const char *path, const char *interface, const char *method, char **args)
+static int get_player_namespaces(char **buf, int max_players)
 {
-    /* Call method and return reply message */
-    DBusConnection *conn = dbus_get_connection();
-    if (conn == NULL)
-        return NULL;
+    GDBusProxy *proxy = NULL;
+    GVariant * reply = NULL;
+	GError *error = NULL;
+    GVariant *temp = NULL;
+    int pos = 0;
+    int ret = 0;
 
-    DBusError err = {0};
-    dbus_error_init(&err);
+    proxy = g_dbus_proxy_new_for_bus_sync (G_BUS_TYPE_SESSION,
+                                           G_DBUS_PROXY_FLAGS_NONE,
+                                           NULL, /* GDBusInterfaceInfo */
+                                           DBUS_DESTINATION,
+                                           DBUS_PATH,
+                                           DBUS_INTERFACE,
+                                           NULL, /* GCancellable */
+                                           &error);
 
-    DBusMessage* msg;
-    DBusMessage* reply = NULL;
-    DBusPendingCall* pending;
-    DBusMessage *ret = NULL;
-
-    // create a new method call and check for errors
-    msg = dbus_message_new_method_call(destination, path, interface, method);
-    if (msg == NULL) {
-        fprintf(stderr, "Failed to make new method call\n");
-        goto cleanup_on_err;
+    if (proxy == NULL) {
+        printf("Error creating proxy\n%s\n", error->message);
+        ret = -1;
+        goto cleanup;
     }
 
-    if (args != NULL) {
-        char **arg = args;
-        while (*arg != NULL) {
-            DBusMessageIter params;
-            // append interface we want to get the property from
-            dbus_message_iter_init_append(msg, &params);
-            if (!dbus_message_iter_append_basic(&params, DBUS_TYPE_STRING, arg)) {
-                fprintf(stderr, "Failed to append argument to dbus method call\n");
-                goto cleanup_on_err;
-            }
-            arg++;
-        }
+    reply = g_dbus_proxy_call_sync(proxy,
+                                           DBUS_METHOD_LIST_NAMES,
+                                           NULL,
+                                           G_DBUS_CALL_FLAGS_NONE,
+                                           -1,
+                                           NULL,
+                                           &error);
+
+    if (reply == NULL) {
+        printf("No return value\n%s\n", error->message);
+        ret = -1;
+        goto cleanup;
     }
 
-    // send message and get a handle for a reply
-    if (!dbus_connection_send_with_reply(conn, msg, &pending, DBUS_CONNECTION_TIMEOUT) || pending == NULL) {
-        fprintf(stderr, "Failed to send message\n");
-        goto cleanup_on_err;
+    GVariantIter iter;
+    GVariant *child;
+    temp = g_variant_get_child_value(reply, 0);
+
+    g_variant_iter_init (&iter, temp);
+    while ((child = g_variant_iter_next_value (&iter))) {
+        if (pos == max_players)
+            break;
+
+        if (strstr(g_variant_get_string(child, NULL), MPRIS_PLAYER_NAMESPACE) != NULL)
+            buf[pos++] = strdup(g_variant_get_string(child, NULL));
+
+        g_variant_unref (child);
     }
 
-    dbus_connection_flush(conn);
+cleanup:
+    buf[pos] = NULL;
 
-    // block until we receive a reply
-    dbus_pending_call_block(pending);
+    if (reply)
+        g_variant_unref(reply);
+    if (temp)
+        g_variant_unref(temp);
+    if (proxy)
+        g_object_unref(proxy);
 
-    // get the reply message
-    if ((reply = dbus_pending_call_steal_reply(pending)) == NULL) {
-        fprintf(stderr, "Failed to get reply\n");
-        goto cleanup_on_err;
-    }
-
-    ret = reply;
-
-cleanup_on_err:
-    if (pending)
-        dbus_pending_call_unref(pending);
-    if (msg)
-        dbus_message_unref(msg);
-    if (dbus_error_is_set(&err))
-        dbus_error_free(&err);
     return ret;
+
 }
 
-static int mpris_player_load_identity(struct MprisPlayer *mp)
+static int mpris_player_set_string(char **buf, const char *value, const char *default_value)
+{
+    /* check if a new value should be set or default */
+    if (*buf != NULL)
+        free(*buf);
+
+    if (value == NULL || strlen(value) == 0)
+        *buf = strdup(default_value);
+    else
+        *buf = strdup(value);
+
+    return 0;
+}
+
+static void mpris_player_set_string_from_gvariant(char **buf, GVariant *value, const char *default_value)
+{
+    if (g_variant_is_of_type(value, G_VARIANT_TYPE_ARRAY)) {
+        GVariantIter iter;
+        GVariant *child;
+        char strbuf[256] = "";
+
+        g_variant_iter_init (&iter, value);
+        while ((child = g_variant_iter_next_value (&iter))) {
+            strncat(strbuf, g_variant_get_string(child, NULL), strlen(g_variant_get_string(child, NULL)));
+            g_variant_unref (child);
+        }
+        mpris_player_set_string(buf, strbuf, default_value);
+    }
+
+    else if (!(g_variant_is_of_type(value, G_VARIANT_TYPE_STRING) || g_variant_is_of_type(value, G_VARIANT_TYPE_OBJECT_PATH))) {
+        mpris_player_set_string(buf, NULL, default_value);
+    }
+
+    else {
+        mpris_player_set_string(buf, g_variant_get_string(value, NULL), default_value);
+    }
+}
+
+static int mpris_player_get_identity(char *namespace, char **buf)
 {
     int ret = 0;
-    DBusMessage *reply;
-    DBusMessageIter rootiter;
-    DBusError err;
-    dbus_error_init(&err);
+    mprisMediaPlayer2 *proxy = NULL;
+	GError *error = NULL;
 
-    char *args[] = {MPRIS_PLAYER_NAMESPACE, MPRIS_ARG_PLAYER_IDENTITY, NULL};
-    if ((reply = dbus_call_method(mp->namespace, MPRIS_PLAYER_OBJECT_PATH, DBUS_PROPERTIES_INTERFACE, DBUS_METHOD_GET, args)) == NULL) {
-        printf("No reply\n");
+	proxy = mpris_media_player2_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
+                                                       G_DBUS_PROXY_FLAGS_NONE,
+                                                       namespace,
+                                                       MPRIS_PLAYER_OBJECT_PATH,
+                                                       NULL,
+                                                       &error);
+
+    if (proxy == NULL) {
+        printf("Error creating proxy\n%s\n", error->message);
         ret = -1;
-        goto cleanup_on_err;
+        goto cleanup;
     }
 
-    if (!dbus_message_iter_init(reply, &rootiter)) {
-        fprintf(stderr, "Failed to get iter init\n");
-        ret = -1;
-        goto cleanup_on_err;
-    }
+    mpris_player_set_string(buf, mpris_media_player2_get_identity(proxy), MPRIS_METADATA_DEFAULT_STR);
 
-    mp->properties.player_name = extract_string_var(&rootiter, &err);
-
-cleanup_on_err:
-    if (reply)
-        dbus_message_unref(reply);
-    if (dbus_error_is_set(&err))
-        dbus_error_free(&err);
-
+cleanup:
+    if (proxy)
+        g_object_unref(proxy);
     return ret;
 }
 
-static void mpris_player_load_metadata(struct MprisPlayer *mp, DBusMessageIter *iter)
-{
-    DBusError err;
-    dbus_error_init(&err);
-
-    if (DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(iter)) {
-        dbus_set_error_const(&err, "iter_should_be_variant", "This message iterator must be have variant type");
-        return;
-    }
-
-    DBusMessageIter variantIter;
-    dbus_message_iter_recurse(iter, &variantIter);
-    if (DBUS_TYPE_ARRAY != dbus_message_iter_get_arg_type(&variantIter)) {
-        dbus_set_error_const(&err, "variant_should_be_array", "This variant reply message must have array content");
-        return;
-    }
-    DBusMessageIter arrayIter;
-    dbus_message_iter_recurse(&variantIter, &arrayIter);
-    while (1) {
-        char* key = NULL;
-        if (DBUS_TYPE_DICT_ENTRY == dbus_message_iter_get_arg_type(&arrayIter)) {
-            DBusMessageIter dictiter;
-            dbus_message_iter_recurse(&arrayIter, &dictiter);
-            if (DBUS_TYPE_STRING != dbus_message_iter_get_arg_type(&dictiter)) {
-                dbus_set_error_const(&err, "missing_key", "This message iterator doesn't have key");
-            }
-            dbus_message_iter_get_basic(&dictiter, &key);
-
-            if (!dbus_message_iter_has_next(&dictiter)) {
-                continue;
-            }
-            dbus_message_iter_next(&dictiter);
-
-            if (!strncmp(key, MPRIS_METADATA_BITRATE, strlen(MPRIS_METADATA_BITRATE))) {
-                mp->metadata.bitrate = extract_int32_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_METADATA_ART_URL, strlen(MPRIS_METADATA_ART_URL))) {
-                mp->metadata.art_url = extract_string_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_METADATA_LENGTH, strlen(MPRIS_METADATA_LENGTH))) {
-                mp->metadata.length = extract_int64_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_METADATA_TRACKID, strlen(MPRIS_METADATA_TRACKID))) {
-                mp->metadata.track_id = extract_string_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_METADATA_ALBUM_ARTIST, strlen(MPRIS_METADATA_ALBUM_ARTIST))) {
-                mp->metadata.album_artist = extract_string_var(&dictiter, &err);
-            } else if (!strncmp(key, MPRIS_METADATA_ALBUM, strlen(MPRIS_METADATA_ALBUM))) {
-                mp->metadata.album = extract_string_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_METADATA_ARTIST, strlen(MPRIS_METADATA_ARTIST))) {
-                mp->metadata.artist = extract_string_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_METADATA_COMMENT, strlen(MPRIS_METADATA_COMMENT))) {
-                mp->metadata.comment = extract_string_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_METADATA_TITLE, strlen(MPRIS_METADATA_TITLE))) {
-                mp->metadata.title = extract_string_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_METADATA_TRACK_NUMBER, strlen(MPRIS_METADATA_TRACK_NUMBER))) {
-                mp->metadata.track_number = extract_int32_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_METADATA_URL, strlen(MPRIS_METADATA_URL))) {
-                mp->metadata.url = extract_string_var(&dictiter, &err);
-            }
-            if (dbus_error_is_set(&err)) {
-                fprintf(stderr, "err: %s, %s\n", key, err.message);
-                dbus_error_free(&err);
-            }
-        }
-        if (!dbus_message_iter_has_next(&arrayIter)) {
-            break;
-        }
-        dbus_message_iter_next(&arrayIter);
-    }
-}
-
-static int mpris_player_load_properties(struct MprisPlayer *mp)
+static int mpris_player_load(struct MPRISPlayer *mp)
 {
     int ret = 0;
-    DBusMessage *reply;
-    DBusMessageIter rootiter;
-    DBusError err;
-    dbus_error_init(&err);
+    mprisMediaPlayer2Player *proxy = NULL;
+    GVariant *metadata = NULL;
+	GError *error = NULL;
 
-    char *args[] = {MPRIS_PLAYER_INTERFACE, NULL};
-    if ((reply = dbus_call_method(mp->namespace, MPRIS_PLAYER_OBJECT_PATH, DBUS_PROPERTIES_INTERFACE, DBUS_METHOD_GET_ALL, args)) == NULL) {
-        printf("No reply\n");
+	proxy = mpris_media_player2_player_proxy_new_for_bus_sync(G_BUS_TYPE_SESSION,
+                                                              G_DBUS_PROXY_FLAGS_NONE,
+                                                              mp->namespace,
+                                                              MPRIS_PLAYER_OBJECT_PATH,
+                                                              NULL,
+                                                              &error);
+
+
+    if (proxy == NULL) {
+        printf("Error creating proxy\n%s\n", error->message);
         ret = -1;
-        goto cleanup_on_err;
+        goto cleanup;
     }
 
-    if (!dbus_message_iter_init(reply, &rootiter)) {
-        fprintf(stderr, "Failed to get iter init\n");
+    mpris_player_set_string(&(mp->properties->loop_status),     mpris_media_player2_player_get_loop_status(proxy), MPRIS_METADATA_DEFAULT_STR);
+    mpris_player_set_string(&(mp->properties->playback_status), mpris_media_player2_player_get_playback_status(proxy), MPRIS_METADATA_DEFAULT_STR);
+    mpris_player_get_identity(mp->namespace, &(mp->name));
+
+    mp->properties->volume          = mpris_media_player2_player_get_volume(proxy);
+    mp->properties->position        = mpris_media_player2_player_get_position(proxy);
+    mp->properties->can_control     = mpris_media_player2_player_get_can_control(proxy);
+    mp->properties->can_go_next     = mpris_media_player2_player_get_can_go_next(proxy);
+    mp->properties->can_go_previous = mpris_media_player2_player_get_can_go_previous(proxy);
+    mp->properties->can_play        = mpris_media_player2_player_get_can_play(proxy);
+    mp->properties->can_pause       = mpris_media_player2_player_get_can_pause(proxy);
+    mp->properties->can_seek        = mpris_media_player2_player_get_can_seek(proxy);
+    mp->properties->shuffle         = mpris_media_player2_player_get_shuffle(proxy);
+
+    if (strcmp(mp->properties->playback_status, "Playing") == 0)
+        mp->properties->status = MPRIS_STATUS_PLAYING;
+    else if (strcmp(mp->properties->playback_status, "Paused") == 0)
+        mp->properties->status = MPRIS_STATUS_PAUSED;
+    else if (strcmp(mp->properties->playback_status, "Stopped") == 0)
+        mp->properties->status = MPRIS_STATUS_STOPPED;
+    else
+        mp->properties->status = MPRIS_STATUS_UNKNOWN;
+
+    metadata = mpris_media_player2_player_get_metadata(proxy);
+    if (metadata == NULL) {
+        fprintf(stderr, "Error getting metadata for: %s\n", mp->namespace);
         ret = -1;
-        goto cleanup_on_err;
+        goto cleanup;
     }
 
-    if (dbus_message_iter_get_arg_type(&rootiter) != DBUS_TYPE_ARRAY) {
-        ret = -1;
-        goto cleanup_on_err;
+    //GVariant *temp = g_variant_get_child_value(metadata, 0);
+    GVariantIter iter;
+    g_variant_iter_init(&iter, metadata);
+
+    const char *key = NULL;
+    GVariant *value = NULL;
+    while (g_variant_iter_loop(&iter, "{s@v}", &key, &value)) {
+        GVariant *unboxed = g_variant_get_variant(value);
+
+        //printf("k:v  %s => %s\n", key, g_variant_get_type_string(unboxed));
+
+        // strings
+        if (strcmp(key, MPRIS_METADATA_ALBUM) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->album), unboxed, MPRIS_METADATA_DEFAULT_STR);
+        if (strcmp(key, MPRIS_METADATA_TITLE) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->title), unboxed, MPRIS_METADATA_DEFAULT_STR);
+        if (strcmp(key, MPRIS_METADATA_ART_URL) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->art_url), unboxed, MPRIS_METADATA_DEFAULT_STR);
+        if (strcmp(key, MPRIS_METADATA_COMMENT) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->comment), unboxed, MPRIS_METADATA_DEFAULT_STR);
+        if (strcmp(key, MPRIS_METADATA_TRACKID) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->track_id), unboxed, MPRIS_METADATA_DEFAULT_STR);
+        if (strcmp(key, MPRIS_METADATA_URL) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->url), unboxed, MPRIS_METADATA_DEFAULT_STR);
+        if (strcmp(key, MPRIS_METADATA_CONTENT_CREATED) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->content_created), unboxed, MPRIS_METADATA_DEFAULT_STR);
+
+        // arrays
+        if (strcmp(key, MPRIS_METADATA_ARTIST) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->artist), unboxed, MPRIS_METADATA_DEFAULT_STR);
+        if (strcmp(key, MPRIS_METADATA_ALBUM_ARTIST) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->album_artist), unboxed, MPRIS_METADATA_DEFAULT_STR);
+        if (strcmp(key, MPRIS_METADATA_GENRE) == 0)
+            mpris_player_set_string_from_gvariant(&(mp->metadata->genre), unboxed, MPRIS_METADATA_DEFAULT_STR);
+
+        // numbers
+        if (strcmp(key, MPRIS_METADATA_TRACK_NUMBER) == 0)
+            mp->metadata->track_number = g_variant_get_int32(unboxed);
+        if (strcmp(key, MPRIS_METADATA_BITRATE) == 0)
+            mp->metadata->bitrate = g_variant_get_int32(unboxed);
+        if (strcmp(key, MPRIS_METADATA_DISC_NUMBER) == 0)
+            mp->metadata->disc_number = g_variant_get_int32(unboxed);
+        if (strcmp(key, MPRIS_METADATA_LENGTH) == 0)
+            mp->metadata->length = g_variant_get_int64(unboxed);
+            // set int
     }
 
-    DBusMessageIter arrayElementIter;
-    dbus_message_iter_recurse(&rootiter, &arrayElementIter);
 
-    while (1) {
-        char* key;
+    //g_variant_iter_init (&iter, temp);
+    //while ((child = g_variant_iter_next_value (&iter))) {
+    //    if (g_variant_is_of_type(child, G_VARIANT_TYPE_STRING))
+    //        printf("item: %s\n", g_variant_get_string(child, NULL));
+    //    else
+    //        printf("type: %s\n",g_variant_get_type_string(child));
 
-        if (DBUS_TYPE_DICT_ENTRY == dbus_message_iter_get_arg_type(&arrayElementIter)) {
-            DBusMessageIter dictiter;
-            dbus_message_iter_recurse(&arrayElementIter, &dictiter);
-            if (DBUS_TYPE_STRING != dbus_message_iter_get_arg_type(&dictiter)) {
-                dbus_set_error_const(&err, "missing_key", "This message iterator doesn't have key");
-            }
-            dbus_message_iter_get_basic(&dictiter, &key);
 
-            if (!dbus_message_iter_has_next(&dictiter))
-                continue;
+    //    g_variant_unref (child);
+    //}
 
-            //printf("KEY: %s\n", key);
-
-            dbus_message_iter_next(&dictiter);
-
-            if (!strncmp(key, MPRIS_PROP_CANCONTROL, strlen(MPRIS_PROP_CANCONTROL))) {
-                mp->properties.can_control = extract_boolean_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_PROP_CANGONEXT, strlen(MPRIS_PROP_CANGONEXT))) {
-                mp->properties.can_go_next = extract_boolean_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_PROP_CANGOPREVIOUS, strlen(MPRIS_PROP_CANGOPREVIOUS))) {
-                mp->properties.can_go_previous = extract_boolean_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_PROP_CANPAUSE, strlen(MPRIS_PROP_CANPAUSE))) {
-                mp->properties.can_pause = extract_boolean_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_PROP_CANPLAY, strlen(MPRIS_PROP_CANPLAY))) {
-                mp->properties.can_play = extract_boolean_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_PROP_CANSEEK, strlen(MPRIS_PROP_CANSEEK))) {
-                mp->properties.can_seek = extract_boolean_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_PROP_LOOPSTATUS, strlen(MPRIS_PROP_LOOPSTATUS))) {
-                mp->properties.loop_status = extract_string_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_PROP_METADATA, strlen(MPRIS_PROP_METADATA))) {
-                mpris_player_load_metadata(mp, &dictiter);
-            }
-            if (!strncmp(key, MPRIS_PROP_PLAYBACKSTATUS, strlen(MPRIS_PROP_PLAYBACKSTATUS))) {
-                mp->properties.playback_status = extract_string_var(&dictiter, &err);
-                if (strcmp(mp->properties.playback_status, "Playing") == 0)
-                    mp->properties.status = MPRIS_STATUS_PLAYING;
-                else if (strcmp(mp->properties.playback_status, "Paused") == 0)
-                    mp->properties.status = MPRIS_STATUS_PAUSED;
-                else if (strcmp(mp->properties.playback_status, "Stopped") == 0)
-                    mp->properties.status = MPRIS_STATUS_STOPPED;
-                else
-                    mp->properties.status = MPRIS_STATUS_UNKNOWN;
-            }
-            if (!strncmp(key, MPRIS_PROP_POSITION, strlen(MPRIS_PROP_POSITION))) {
-                mp->properties.position= extract_int64_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_PROP_SHUFFLE, strlen(MPRIS_PROP_SHUFFLE))) {
-                mp->properties.shuffle = extract_boolean_var(&dictiter, &err);
-            }
-            if (!strncmp(key, MPRIS_PROP_VOLUME, strlen(MPRIS_PROP_VOLUME))) {
-                mp->properties.volume = extract_double_var(&dictiter, &err);
-            }
-        }
-
-        if (!dbus_message_iter_has_next(&arrayElementIter)) {
-            break;
-        }
-        dbus_message_iter_next(&arrayElementIter);
-    }
-
-cleanup_on_err:
-    if (reply)
-        dbus_message_unref(reply);
-    if (dbus_error_is_set(&err))
-        dbus_error_free(&err);
+cleanup:
+    if (proxy)
+        g_object_unref(proxy);
+    //if (metadata)
+    //    g_variant_unref(metadata);
+    //if (temp)
+    //    g_variant_unref(temp);
     return ret;
 }
 
-static double extract_double_var(DBusMessageIter *iter, DBusError *error)
-{
-    double result = 0;
-
-    if (DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(iter)) {
-        dbus_set_error_const(error, "iter_should_be_variant", "This message iterator must be have variant type");
-        return 0;
-    }
-
-    DBusMessageIter variantIter;
-    dbus_message_iter_recurse(iter, &variantIter);
-    if (DBUS_TYPE_DOUBLE == dbus_message_iter_get_arg_type(&variantIter)) {
-        dbus_message_iter_get_basic(&variantIter, &result);
-        return result;
-    }
-    return 0;
-}
-
-static char* extract_string_var(DBusMessageIter *iter, DBusError *error)
-{
-    char strbuf[256] = "";
-
-    if (DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(iter)) {
-        //dbus_set_error_const(error, "iter_should_be_variant", "This message iterator must be have variant type");
-        fprintf(stderr, "iter should be variant\n");
-        return NULL;
-    }
-
-    DBusMessageIter variantIter = {0};
-    dbus_message_iter_recurse(iter, &variantIter);
-    if (DBUS_TYPE_OBJECT_PATH == dbus_message_iter_get_arg_type(&variantIter)) {
-        char *val = NULL;
-        dbus_message_iter_get_basic(&variantIter, &val);
-        memcpy(strbuf, val, strlen(val));
-    } else if (DBUS_TYPE_STRING == dbus_message_iter_get_arg_type(&variantIter)) {
-        char *val = NULL;
-        dbus_message_iter_get_basic(&variantIter, &val);
-        memcpy(strbuf, val, strlen(val));
-    } else if (DBUS_TYPE_ARRAY == dbus_message_iter_get_arg_type(&variantIter)) {
-        DBusMessageIter arrayIter;
-        dbus_message_iter_recurse(&variantIter, &arrayIter);
-        while (1) {
-            // todo(marius): load all elements of the array
-            if (DBUS_TYPE_STRING == dbus_message_iter_get_arg_type(&arrayIter)) {
-                char *val = NULL;
-                dbus_message_iter_get_basic(&arrayIter, &val);
-                strncat(strbuf, val, 256 - strlen(strbuf) - 1);
-            }
-            if (!dbus_message_iter_has_next(&arrayIter)) {
-                break;
-            }
-            dbus_message_iter_next(&arrayIter);
-        }
-    }
-    return strdup(strbuf);
-}
-
-static int32_t extract_int32_var(DBusMessageIter *iter, DBusError *error)
-{
-    int32_t result = 0;
-    if (DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(iter)) {
-        dbus_set_error_const(error, "iter_should_be_variant", "This message iterator must be have variant type");
-        return 0;
-    }
-
-    DBusMessageIter variantIter;
-    dbus_message_iter_recurse(iter, &variantIter);
-
-    if (DBUS_TYPE_INT32 == dbus_message_iter_get_arg_type(&variantIter)) {
-        dbus_message_iter_get_basic(&variantIter, &result);
-        return result;
-    }
-    return 0;
-}
-
-static int64_t extract_int64_var(DBusMessageIter *iter, DBusError *error)
-{
-    int64_t result = 0;
-    if (DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(iter)) {
-        dbus_set_error_const(error, "iter_should_be_variant", "This message iterator must be have variant type");
-        return 0;
-    }
-
-    DBusMessageIter variantIter;
-    dbus_message_iter_recurse(iter, &variantIter);
-
-    if (DBUS_TYPE_INT64 == dbus_message_iter_get_arg_type(&variantIter)) {
-        dbus_message_iter_get_basic(&variantIter, &result);
-        return result;
-    }
-    if (DBUS_TYPE_UINT64 == dbus_message_iter_get_arg_type(&variantIter)) {
-        uint64_t temp;
-        dbus_message_iter_get_basic(&variantIter, &temp);
-        result = (int64_t)temp;
-        return result;
-    }
-    return 0;
-}
-
-static int extract_boolean_var(DBusMessageIter *iter, DBusError *error)
-{
-    int result = 0;
-
-    if (DBUS_TYPE_VARIANT != dbus_message_iter_get_arg_type(iter)) {
-        dbus_set_error_const(error, "iter_should_be_variant", "This message iterator must be have variant type");
-        return 0;
-    }
-
-    DBusMessageIter variantIter;
-    dbus_message_iter_recurse(iter, &variantIter);
-
-    if (DBUS_TYPE_BOOLEAN == dbus_message_iter_get_arg_type(&variantIter)) {
-        dbus_message_iter_get_basic(&variantIter, &result);
-        return result;
-    }
-    return 0;
-}

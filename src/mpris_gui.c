@@ -1,10 +1,23 @@
 #include "mpris_gui.h"
 #include "mpris.h"
 
+// TODO create MprisPlayer structs and tye them to the MPRISItem
+// instead of creating new struct everytime just update them
+// this way we can make the struct attributes into object properties.
+// Now we use properties in the MPRISItem which is annoying since we have
+// to do double work
+// Mpris structs need to be added to the MPRISItem object before any
+// of its methods are called because that would pass uninitialized values
+// around
+
 // use this to block signals when moving slider to not get into eternal loop
 // Should be done with the g_signal_handlers_block_by_func funtion but that doesn't
 // work for some reason
 _Atomic int block_signals = 0;
+
+// store the headnode here, will be updated in mpris_get_data_thread()
+struct MPRISPlayer *head = NULL;
+struct MPRISPlayer **mp = &head;
 
 static void on_scale_value_changed(GObject *self, gpointer user_data);
 
@@ -29,39 +42,32 @@ static void mpris_item_set_property(GObject *object, guint property_id, const GV
   switch ((enum MprisItemProperty) property_id)
     {
     case PROP_ARTIST:
-        if (self->artist != NULL)
-            g_free(self->artist);
-        self->artist = g_value_dup_string(value);
+        self->mp->metadata->artist = g_value_dup_string(value);
         break;
 
     case PROP_TITLE:
-        if (self->title != NULL)
-            g_free(self->title);
-        self->title = g_value_dup_string(value);
+        printf("set prop TITLE => %s\n", g_value_dup_string(value));
+        self->mp->metadata->title = g_value_dup_string(value);
         break;
 
     case PROP_ART_URL:
-        if (self->art_url != NULL)
-            g_free(self->art_url);
-        self->art_url = g_value_dup_string(value);
+        self->mp->metadata->art_url = g_value_dup_string(value);
         break;
 
     case PROP_POSITION:
-        self->position = g_value_get_uint64(value);
+        self->mp->properties->position = g_value_get_uint64(value);
         break;
 
     case PROP_LENGTH:
-        self->length = g_value_get_uint64(value);
+        self->mp->metadata->length = g_value_get_uint64(value);
         break;
 
     case PROP_STATUS:
-        self->status = g_value_get_int(value);
+        self->mp->properties->status = g_value_get_int(value);
         break;
 
     case PROP_TRACK_ID:
-        if (self->title != NULL)
-            g_free(self->title);
-        self->track_id = g_value_dup_string(value);
+        self->mp->metadata->track_id = g_value_dup_string(value);
         break;
 
     default:
@@ -77,31 +83,31 @@ static void mpris_item_get_property(GObject *object, guint property_id, GValue *
 
   switch ((enum MprisItemProperty) property_id) {
     case PROP_ARTIST:
-        g_value_set_string(value, self->artist);
+        g_value_set_string(value, self->mp->metadata->artist);
         break;
 
     case PROP_TITLE:
-        g_value_set_string(value, self->title);
+        g_value_set_string(value, self->mp->metadata->title);
         break;
 
     case PROP_ART_URL:
-        g_value_set_string(value, self->art_url);
+        g_value_set_string(value, self->mp->metadata->art_url);
         break;
 
     case PROP_POSITION:
-        g_value_set_uint64(value, self->position);
+        g_value_set_uint64(value, self->mp->properties->position);
         break;
 
     case PROP_LENGTH:
-        g_value_set_uint64(value, self->length);
+        g_value_set_uint64(value, self->mp->metadata->length);
         break;
 
     case PROP_STATUS:
-        g_value_set_int(value, self->status);
+        g_value_set_int(value, self->mp->properties->status);
         break;
 
     case PROP_TRACK_ID:
-        g_value_set_string(value, self->track_id);
+        g_value_set_string(value, self->mp->metadata->track_id);
         break;
 
     default:
@@ -179,7 +185,7 @@ static void mpris_item_class_init(MPRISItemClass *klass)
                                       obj_properties);
 }
 
-static MPRISItem *mpris_item_new(struct MprisPlayer *mp)
+static MPRISItem *mpris_item_new(struct MPRISPlayer *mp)
 {
     MPRISItem *item;
     //GValue gartist = G_VALUE_INIT;
@@ -188,14 +194,17 @@ static MPRISItem *mpris_item_new(struct MprisPlayer *mp)
     //printf ("property: %s\n", g_value_get_string (&gartist));
     //const char *names[] = {"artist"};
     //const GValue* values = {&gartist};
+    printf("creating item with namespace: %s\n", mp->namespace);
 
     //item = MPRIS_ITEM(g_object_new_with_properties(MPRIS_TYPE_ITEM, 1, names, values));
     item = g_object_new(MPRIS_TYPE_ITEM, NULL);
-    //item->mp = mp;
-    printf("creating item with namespace: %s\n", mp->namespace);
+    item->mp = mp;
     item->namespace = strdup(mp->namespace);
+    item->first_run = 1;
+    printf("endof init\n");
+
     //update_prop_str(G_OBJECT(item), "artist", mp->metadata.artist);
-    //update_prop_str(G_OBJECT(item), "title", mp->metadata.title);
+    //update_prop_str(G_OBJECT(item), "title", mp->metadata->title, 1);
     //update_prop_str(G_OBJECT(item), "art_url", mp->metadata.art_url);
     //update_prop_uint64(G_OBJECT(item), "position", mp->properties.position);
     //update_prop_uint64(G_OBJECT(item), "length", mp->metadata.length);
@@ -240,18 +249,18 @@ static void on_position_changed(GObject *self, void *param, gpointer user_data)
 static void on_status_changed(GObject *self, void *param, gpointer user_data)
 {
     MPRISItem *item = MPRIS_ITEM(self);
-    if (item->status == MPRIS_STATUS_PAUSED)
-        gtk_button_set_icon_name(GTK_BUTTON(user_data), "media-playback-pause-symbolic");
-    else if (item->status == MPRIS_STATUS_PLAYING)
+    if (item->mp->properties->status == MPRIS_STATUS_PAUSED)
         gtk_button_set_icon_name(GTK_BUTTON(user_data), "media-playback-start-symbolic");
+    else if (item->mp->properties->status == MPRIS_STATUS_PLAYING)
+        gtk_button_set_icon_name(GTK_BUTTON(user_data), "media-playback-pause-symbolic");
 }
 
 static void on_toggle_clicked(GObject *self, void *param, gpointer user_data)
 {
     MPRISItem *item = MPRIS_ITEM(user_data);
-    if (item->status == MPRIS_STATUS_PAUSED)
+    if (item->mp->properties->status == MPRIS_STATUS_PAUSED)
         mpris_player_play(item->namespace);
-    else if (item->status == MPRIS_STATUS_PLAYING)
+    else if (item->mp->properties->status == MPRIS_STATUS_PLAYING)
         mpris_player_pause(item->namespace);
 }
 
@@ -273,7 +282,7 @@ static void on_scale_value_changed(GObject *self, gpointer user_data)
 
     uint64_t val = gtk_range_get_value(GTK_RANGE(self));
     MPRISItem *item = MPRIS_ITEM(user_data);
-    mpris_player_set_position(item->namespace, item->track_id, val);
+    mpris_player_set_position(item->namespace, item->mp->metadata->track_id, val);
 }
 
 static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
@@ -323,14 +332,14 @@ MPRISItem* mpris_model_contains_namespace(GListModel *model, char *namespace)
     return NULL;
 }
 
-int mpris_model_remove_players(GListModel *model, struct MprisPlayer *mp_head)
+int mpris_model_remove_players(GListModel *model, struct MPRISPlayer *mp_head)
 {
     /* Check model if it contains items that do not exist in our data and remove them */
 
     for (int i=0 ; i<g_list_model_get_n_items(model) ; i++) {
         MPRISItem *item = g_list_model_get_item(model, i);
 
-        struct MprisPlayer *mp = mp_head;
+        struct MPRISPlayer *mp = mp_head;
 
         int match = 0;
         while (mp != NULL) {
@@ -369,34 +378,41 @@ int mpris_get_data_thread(void *args)
     if (module_is_locked(m))
         return 1;
 
-    struct MprisPlayer *mp_head = mpris_player_load_all();
+    struct MPRISPlayer *mp_head = mpris_player_load_all(*mp);
+
+    // check if a player is removed
+    mpris_model_remove_players(model, mp_head);
+
     if (mp_head == NULL) {
-        printf("Failed to get players\n");
+        printf("No players found\n");
         return -1;
     }
 
     // check if a new player is found or that the player should be updated with new data
-    struct MprisPlayer *mp = mp_head;
+    struct MPRISPlayer *mp = mp_head;
     while (mp != NULL) {
         MPRISItem *item;
-        if ((item = mpris_model_contains_namespace(model, mp->namespace)) != NULL) {
-            update_prop_str(G_OBJECT(item), "artist", mp->metadata.artist);
-            update_prop_str(G_OBJECT(item), "title", mp->metadata.title);
-            update_prop_str(G_OBJECT(item), "art_url", mp->metadata.art_url);
-            update_prop_uint64(G_OBJECT(item), "length", mp->metadata.length);
-            update_prop_uint64(G_OBJECT(item), "position", mp->properties.position);
-            update_prop_int(G_OBJECT(item), "status", mp->properties.status);
-            update_prop_str(G_OBJECT(item), "track_id", mp->metadata.track_id);
+        MPRISItem *found = mpris_model_contains_namespace(model, mp->namespace);
+
+        if (found != NULL) {
+            item = found;
         }
         else {
-            MPRISItem *item = mpris_item_new(mp);
+            item = mpris_item_new(mp);
             g_list_store_append(G_LIST_STORE(model), item);
         }
-        mp = mp->next;
-    }
 
-    // check if a player is removed
-    mpris_model_remove_players(model, mp_head);
+        update_prop_str(G_OBJECT(item), "artist", mp->metadata->artist, item->first_run);
+        update_prop_str(G_OBJECT(item), "title", mp->metadata->title, item->first_run);
+        update_prop_str(G_OBJECT(item), "art_url", mp->metadata->art_url, item->first_run);
+        update_prop_uint64(G_OBJECT(item), "length", mp->metadata->length, item->first_run);
+        update_prop_uint64(G_OBJECT(item), "position", mp->properties->position, item->first_run);
+        update_prop_int(G_OBJECT(item), "status", mp->properties->status, item->first_run);
+        update_prop_str(G_OBJECT(item), "track_id", mp->metadata->track_id, item->first_run);
+        mp = mp->next;
+
+        item->first_run = 0;
+    }
     return 1;
 }
 
@@ -415,10 +431,8 @@ GObject* mpris_gui_init(struct Module *m)
     GList *args = g_list_append(NULL, model);
     args = g_list_append(args, m);
 
-    mpris_get_data_thread(args);
+    //mpris_get_data_thread(args);
     g_timeout_add(MPRIS_UPDATE_INTERVAL_MS, mpris_get_data_thread, args);
 
-
     return G_OBJECT(lv);
-
 }

@@ -12,17 +12,10 @@
 G_DECLARE_FINAL_TYPE(MPRISItem, mpris_item, MPRIS, ITEM, GObject)
 struct _MPRISItem {
     GObject parent_instance;
-    //struct MprisPlayer *mp;
+    struct MPRISPlayer *mp;
+
     char *namespace;
-    char *artist;
-    char *title;
-    char *art_url;
-    char *track_id;
-
-    uint64_t position;
-    uint64_t length;
-
-    int status;
+    int first_run;
     
 
 };

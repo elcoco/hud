@@ -139,42 +139,42 @@ GAppInfo* find_appinfo(const char *app_name)
     return match;
 }
 
-void update_prop_str(GObject *item, const char *key, const char *value)
+void update_prop_str(GObject *item, const char *key, const char *value, int force)
 {
     /* update a property on an object if changed */
     GValue gvalue = G_VALUE_INIT;
     g_value_init(&gvalue, G_TYPE_STRING);
 
     g_object_get_property(item, key, &gvalue);
-    if (g_value_get_string(&gvalue) && strcmp(value, g_value_get_string(&gvalue)) == 0)
+    if (!force && g_value_get_string(&gvalue) && strcmp(value, g_value_get_string(&gvalue)) == 0)
         return;
 
-    g_value_set_string (&gvalue, value);
+    g_value_set_string(&gvalue, value);
     g_object_set_property(item, key, &gvalue);
 }
 
-void update_prop_uint64(GObject *item, const char *key, uint64_t value)
+void update_prop_uint64(GObject *item, const char *key, uint64_t value, int force)
 {
     /* update a property on an object if changed */
     GValue gvalue = G_VALUE_INIT;
     g_value_init(&gvalue, G_TYPE_UINT64);
     g_object_get_property(item, key, &gvalue);
 
-    if (value == g_value_get_uint64(&gvalue))
+    if (!force && value == g_value_get_uint64(&gvalue))
         return;
 
     g_value_set_uint64 (&gvalue, value);
     g_object_set_property(item, key, &gvalue);
 }
 
-void update_prop_int(GObject *item, const char *key, int value)
+void update_prop_int(GObject *item, const char *key, int value, int force)
 {
     /* update a property on an object if changed */
     GValue gvalue = G_VALUE_INIT;
     g_value_init(&gvalue, G_TYPE_INT);
     g_object_get_property(item, key, &gvalue);
 
-    if (value == g_value_get_int(&gvalue))
+    if (!force && value == g_value_get_int(&gvalue))
         return;
 
     g_value_set_int (&gvalue, value);
