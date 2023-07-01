@@ -31,11 +31,6 @@
 #define JCOL_ARR_INDEX JRED
 #define JCOL_UNKNOWN   JRED
 
-typedef enum JSONDtype JSONDtype;
-typedef enum JSONStatus JSONStatus;
-typedef struct JSONObject JSONObject;
-typedef struct Position Position;
-
 enum JSONDtype {
     JSON_STRING,
     JSON_NUMBER,
@@ -55,14 +50,12 @@ enum JSONStatus {
     END_OF_OBJECT  = 2
 };
 
-#define JSON_OBJ_STR "{ \"%s\", "
-
-
 struct JSONObject {
-    /* When object is the root object, parent is NULL */
-    JSONObject* parent;
 
-    JSONDtype dtype;
+    /* When object is the root object, parent is NULL */
+    struct JSONObject* parent;
+
+    enum JSONDtype dtype;
 
     // When object is child of array, the key is NULL
     char* key;
@@ -74,8 +67,7 @@ struct JSONObject {
 
     /* In case of array/object:
      *      - array length is accessed by using jo->length attribute
-     *      - children can be iterated as a linked list by using value as the head node
-     */
+     *      - children can be iterated as a linked list by using value as the head node */
 
     // in case of object or array, this stores the linked list length
     int32_t length;
@@ -84,8 +76,8 @@ struct JSONObject {
     int32_t index;
 
     // If jsonobject is part of an array this gives access to its siblings
-    JSONObject* next;
-    JSONObject* prev;
+    struct JSONObject* next;
+    struct JSONObject* prev;
 
     bool is_bool;
     bool is_string;
@@ -94,7 +86,7 @@ struct JSONObject {
     bool is_object;
 };
 
-
+/* When parsing a json string, this struct holds a pointer to the current position in the string */
 struct Position {
     uint32_t npos;      // char counter
     char *json;         // full json string
@@ -104,24 +96,23 @@ struct Position {
     // row/col counter used to report position of json errors
     uint32_t rows;      
     uint32_t cols;
-
 };
 
-JSONObject* json_load(char* buf);
-JSONObject* json_load_file(char *path);
-void        json_print(JSONObject* jo, uint32_t level);
-void        json_obj_destroy(JSONObject* jo);
-char*       json_object_to_string(JSONObject *jo, int spaces);
-int         json_object_to_file(JSONObject *jo, char *path, int spaces);
+struct JSONObject* json_load(char* buf);
+struct JSONObject* json_load_file(char *path);
+void json_print(struct JSONObject* jo, uint32_t level);
+void json_obj_destroy(struct JSONObject* jo);
+char* json_object_to_string(struct JSONObject *jo, int spaces);
+int json_object_to_file(struct JSONObject *jo, char *path, int spaces);
 
-JSONObject* json_object_init(JSONObject* parent);
+struct JSONObject* json_object_init(struct JSONObject* parent);
 
 // get value casted to the appropriate type
-char*       json_get_string(JSONObject* jo);
-double      json_get_number(JSONObject* jo);
-bool        json_get_bool(JSONObject* jo);
+char* json_get_string(struct JSONObject* jo);
+double json_get_number(struct JSONObject* jo);
+bool json_get_bool(struct JSONObject* jo);
 
-struct JSONObject* json_get_path(struct JSONObject *rn, char *buf);
+struct JSONObject *json_get_path(struct JSONObject *rn, char *buf);
 struct JSONObject *json_set_path(struct JSONObject *rn, char *buf, struct JSONObject *child);
 
 #endif

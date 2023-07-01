@@ -81,7 +81,7 @@ int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop)
         // delete '\n'
         buf[strlen(buf)-1] = '\0';
 
-        JSONObject* rn = json_load(buf);
+        struct JSONObject* rn = json_load(buf);
         free(buf);
 
         if (rn == NULL) {

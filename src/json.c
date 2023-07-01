@@ -1,24 +1,24 @@
 #include "json.h"
 
-static JSONStatus json_parse(JSONObject* jo, Position* pos);
-static JSONStatus json_parse_object(JSONObject* jo, Position* pos);
-static JSONStatus json_parse_array(JSONObject* jo, Position* pos);
-static JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr);
-static JSONStatus json_parse_key(JSONObject* jo, Position* pos);
-static JSONStatus json_parse_bool(JSONObject* jo, Position* pos);
-static JSONStatus json_parse_number(JSONObject* jo, Position* pos);
-static void json_object_add_child(JSONObject *parent, JSONObject *child);
-static char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char** buf);
-static int count_backslashes(Position *pos);
-static char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf);
-static char* pos_next(Position *pos);
-static void print_error(Position *pos, uint32_t amount);
+static enum JSONStatus json_parse(struct JSONObject* jo, struct Position* pos);
+static enum JSONStatus json_parse_object(struct JSONObject* jo, struct Position* pos);
+static enum JSONStatus json_parse_array(struct JSONObject* jo, struct Position* pos);
+static enum JSONStatus json_parse_string(struct JSONObject* jo, struct Position* pos, char quote_chr);
+static enum JSONStatus json_parse_key(struct JSONObject* jo, struct Position* pos);
+static enum JSONStatus json_parse_bool(struct JSONObject* jo, struct Position* pos);
+static enum JSONStatus json_parse_number(struct JSONObject* jo, struct Position* pos);
+static void json_object_add_child(struct JSONObject *parent, struct JSONObject *child);
+static char fforward_skip_escaped_grow(struct Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char** buf);
+static int count_backslashes(struct Position *pos);
+static char fforward_skip_escaped(struct Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf);
+static char* pos_next(struct Position *pos);
+static void print_error(struct Position *pos, uint32_t amount);
 static void get_spaces(char *buf, uint8_t spaces);
 static int json_atoi_err(char *str);
 static int json_get_path_length(char *path);
 static void debug(char* fmt, ...);
-static int is_last_item(JSONObject *jo);
-static void json_object_to_string_rec(JSONObject *jo, char **buf, uint32_t level, int spaces);
+static int is_last_item(struct JSONObject *jo);
+static void json_object_to_string_rec(struct JSONObject *jo, char **buf, uint32_t level, int spaces);
 static void write_to_string(char **buf, char *fmt, ...);
 
 
@@ -38,7 +38,7 @@ static void debug(char* fmt, ...)
     //fclose(fp);
 }
 
-static int is_last_item(JSONObject *jo)
+static int is_last_item(struct JSONObject *jo)
 {
     /* Check if object is last in an array or object to see
      * if we need to use a comma in json render */
@@ -92,7 +92,7 @@ static void write_to_string(char **buf, char *fmt, ...)
     strncat(*buf, src_buf, strlen(src_buf));
 }
 
-static void json_object_to_string_rec(JSONObject *jo, char **buf, uint32_t level, int spaces)
+static void json_object_to_string_rec(struct JSONObject *jo, char **buf, uint32_t level, int spaces)
 {
     /* The function that does the recursive string stuff */
     char space[level+1];
@@ -145,10 +145,8 @@ static void json_object_to_string_rec(JSONObject *jo, char **buf, uint32_t level
     }
 }
 
-
 static int json_atoi_err(char *str)
 {
-
     int num;
     char *endptr;
 
@@ -169,7 +167,7 @@ static void get_spaces(char *buf, uint8_t spaces) {
 }
 
 /* print context for error message */
-static void print_error(Position *pos, uint32_t amount) {
+static void print_error(struct Position *pos, uint32_t amount) {
     char lctext[2*LINES_CONTEXT];       // buffer for string left from current char
     char rctext[2*LINES_CONTEXT];       // buffer for string right from current char
 
@@ -198,9 +196,9 @@ static void print_error(Position *pos, uint32_t amount) {
     printf("%s%s%c%s<--%s%s\n", lctext, JRED, *(pos->c), JBLUE, JRESET, rctext);
 }
 
-static char* pos_next(Position *pos)
+static char* pos_next(struct Position *pos)
 {
-    /* Increment position in json string */
+    /* Increment struct position in json string */
     // keep track of rows/cols position
     if (*(pos->c) == '\n') {
         pos->rows += 1;
@@ -224,7 +222,7 @@ static char* pos_next(Position *pos)
     return pos->c;
 }
 
-static char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf)
+static char fforward_skip_escaped(struct Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf)
 {
     /* fast forward until a char from search_lst is found
      * Save all chars in buf until a char from search_lst is found
@@ -278,7 +276,7 @@ static char fforward_skip_escaped(Position* pos, char* search_lst, char* expecte
     return ret;
 }
 
-static int count_backslashes(Position *pos)
+static int count_backslashes(struct Position *pos)
 {
     int count = 0;
 
@@ -288,7 +286,7 @@ static int count_backslashes(Position *pos)
     return count;
 }
 
-static char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char** buf)
+static char fforward_skip_escaped_grow(struct Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char** buf)
 {
     /* fast forward until a char from search_lst is found
      * Save all chars in buf until a char from search_lst is found
@@ -355,7 +353,7 @@ cleanup_on_err:
     return -1;
 }
 
-static void json_object_add_child(JSONObject *parent, JSONObject *child)
+static void json_object_add_child(struct JSONObject *parent, struct JSONObject *child)
 {
     /* we are not creating array here but in json_parse_object().
      * So we should either come up with a solution or drop the functionality
@@ -374,7 +372,7 @@ static void json_object_add_child(JSONObject *parent, JSONObject *child)
     }
     else {
         // add to end of linked list
-        JSONObject *prev = parent->value;
+        struct JSONObject *prev = parent->value;
 
         // get last item in ll
         while (prev->next != NULL)
@@ -387,7 +385,7 @@ static void json_object_add_child(JSONObject *parent, JSONObject *child)
     }
 }
 
-static JSONStatus json_parse_number(JSONObject* jo, Position* pos)
+static enum JSONStatus json_parse_number(struct JSONObject* jo, struct Position* pos)
 {
     /* All numbers are floats */
     char tmp[MAX_BUF] = {'\0'};
@@ -411,7 +409,7 @@ static JSONStatus json_parse_number(JSONObject* jo, Position* pos)
     return STATUS_SUCCESS;
 }
 
-static JSONStatus json_parse_bool(JSONObject* jo, Position* pos)
+static enum JSONStatus json_parse_bool(struct JSONObject* jo, struct Position* pos)
 {
     char tmp[MAX_BUF] = {'\0'};
     char c;
@@ -436,7 +434,7 @@ static JSONStatus json_parse_bool(JSONObject* jo, Position* pos)
     return STATUS_SUCCESS;
 }
 
-static JSONStatus json_parse_key(JSONObject* jo, Position* pos)
+static enum JSONStatus json_parse_key(struct JSONObject* jo, struct Position* pos)
 {
     /* Parse key part of an object */
     char c;
@@ -483,7 +481,7 @@ static JSONStatus json_parse_key(JSONObject* jo, Position* pos)
     return STATUS_SUCCESS;
 }
 
-static JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
+static enum JSONStatus json_parse_string(struct JSONObject* jo, struct Position* pos, char quote_chr)
 {
     char c;
 
@@ -525,16 +523,16 @@ static JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_ch
     return STATUS_SUCCESS;
 }
 
-static JSONStatus json_parse_array(JSONObject* jo, Position* pos)
+static enum JSONStatus json_parse_array(struct JSONObject* jo, struct Position* pos)
 {
     jo->dtype = JSON_ARRAY;
     //jo->length = 0;
     jo->is_array = true;
 
     while (1) {
-        JSONObject* child = json_object_init(jo);
+        struct JSONObject* child = json_object_init(jo);
 
-        JSONStatus ret = json_parse(child, pos);
+        enum JSONStatus ret = json_parse(child, pos);
         if (ret < 0) {
             json_obj_destroy(child);
             return ret;
@@ -555,14 +553,14 @@ static JSONStatus json_parse_array(JSONObject* jo, Position* pos)
     return STATUS_SUCCESS;
 }
 
-static JSONStatus json_parse_object(JSONObject* jo, Position* pos)
+static enum JSONStatus json_parse_object(struct JSONObject* jo, struct Position* pos)
 {
     jo->dtype = JSON_OBJECT;
     jo->is_object = true;
 
     while (1) {
-        JSONObject* child = json_object_init(jo);
-        JSONStatus ret_key = json_parse_key(child, pos);
+        struct JSONObject* child = json_object_init(jo);
+        enum JSONStatus ret_key = json_parse_key(child, pos);
 
         if (ret_key < 0) {
             json_obj_destroy(child);
@@ -574,7 +572,7 @@ static JSONStatus json_parse_object(JSONObject* jo, Position* pos)
         }
 
         // parse the value
-        JSONStatus ret_value = json_parse(child, pos);
+        enum JSONStatus ret_value = json_parse(child, pos);
         if (ret_value != STATUS_SUCCESS) {
             json_obj_destroy(child);
             return PARSE_ERROR;
@@ -597,7 +595,7 @@ static JSONStatus json_parse_object(JSONObject* jo, Position* pos)
     return STATUS_SUCCESS;
 }
 
-static JSONStatus json_parse(JSONObject* jo, Position* pos)
+static enum JSONStatus json_parse(struct JSONObject* jo, struct Position* pos)
 {
     char tmp[MAX_BUF] = {'\0'};
     char c;
@@ -640,11 +638,9 @@ static JSONStatus json_parse(JSONObject* jo, Position* pos)
     }
 }
 
-
-
-JSONObject* json_load(char* buf)
+struct JSONObject* json_load(char* buf)
 {
-    Position* pos = malloc(sizeof(Position));
+    struct Position* pos = malloc(sizeof(struct Position));
     pos->json     = buf;
     pos->c        = buf;
     pos->npos     = 0;
@@ -652,8 +648,8 @@ JSONObject* json_load(char* buf)
     pos->rows     = 1;
     pos->length   = strlen(buf);
 
-    JSONObject* root = json_object_init(NULL);
-    JSONStatus ret = json_parse(root, pos);
+    struct JSONObject* root = json_object_init(NULL);
+    enum JSONStatus ret = json_parse(root, pos);
 
     // cleanup
     //free(pos->json);
@@ -663,7 +659,7 @@ JSONObject* json_load(char* buf)
 }
 
 /* read file from disk and parse JSON */
-JSONObject* json_load_file(char *path)
+struct JSONObject* json_load_file(char *path)
 {
     // read file in chunks and dynamically allocate memory for buffer
     uint32_t chunk_size = 1000;   // read file in chunks
@@ -687,18 +683,18 @@ JSONObject* json_load_file(char *path)
     fclose(fp);
     printf("read: %ld bytes\n", strlen(buf));
 
-    JSONObject* jo = json_load(buf);
+    struct JSONObject* jo = json_load(buf);
     return jo;
 }
 
-char* json_object_to_string(JSONObject *jo, int spaces)
+char* json_object_to_string(struct JSONObject *jo, int spaces)
 {
     char *buf = NULL;
     json_object_to_string_rec(jo, &buf, 0, spaces);
     return buf;
 }
 
-int json_object_to_file(JSONObject *jo, char *path, int spaces)
+int json_object_to_file(struct JSONObject *jo, char *path, int spaces)
 {
     char *buf = json_object_to_string(jo, spaces);
     FILE *fp = fopen(path, "wb");
@@ -718,10 +714,9 @@ int json_object_to_file(JSONObject *jo, char *path, int spaces)
     return 0;
 }
 
-
-JSONObject* json_object_init(JSONObject* parent)
+struct JSONObject* json_object_init(struct JSONObject* parent)
 {
-    JSONObject* jo = malloc(sizeof(JSONObject));
+    struct JSONObject* jo = malloc(sizeof(struct JSONObject));
     jo->parent = parent;
     jo->prev = NULL;
     jo->next = NULL;
@@ -746,7 +741,7 @@ JSONObject* json_object_init(JSONObject* parent)
     return jo;
 }
 
-void json_obj_destroy(JSONObject* jo)
+void json_obj_destroy(struct JSONObject* jo)
 {
     /* TODO when removing an array index the indexes are not continuous anymore so 
      * they should be rebuilt
@@ -775,20 +770,21 @@ void json_obj_destroy(JSONObject* jo)
 
     if (jo->dtype == JSON_OBJECT || jo->dtype == JSON_ARRAY) {
 
-        JSONObject* child = jo->value;
+        struct JSONObject* child = jo->value;
         while (child != NULL) {
-            JSONObject* tmp = child->next;
+            struct JSONObject* tmp = child->next;
             json_obj_destroy(child);
             child = tmp;
         }
-    } else {
+    }
+    else {
         free(jo->value);
     }
 
     free(jo);
 }
 
-void json_print(JSONObject* jo, uint32_t level)
+void json_print(struct JSONObject* jo, uint32_t level)
 {
     uint8_t incr = 3;
     char space[level+1];
@@ -836,17 +832,17 @@ void json_print(JSONObject* jo, uint32_t level)
     }
 }
 
-double json_get_number(JSONObject* jo)
+double json_get_number(struct JSONObject* jo)
 {
     return *((double*)jo->value);
 }
 
-char* json_get_string(JSONObject* jo)
+char* json_get_string(struct JSONObject* jo)
 {
     return (char*)jo->value;
 }
 
-bool json_get_bool(JSONObject* jo)
+bool json_get_bool(struct JSONObject* jo)
 {
     return *((bool*)jo->value);
 }
@@ -863,7 +859,7 @@ struct JSONObject* json_get_path(struct JSONObject *rn, char *buf)
     char path[256] = "";
     strncpy(path, buf, strlen(buf));
 
-    JSONObject* seg = rn;
+    struct JSONObject* seg = rn;
     char *lasts;
     char *token = strtok_r(path, PATH_DELIM, &lasts);
 
@@ -898,7 +894,7 @@ struct JSONObject *json_set_path(struct JSONObject *rn, char *buf, struct JSONOb
     char path[256] = "";
     strncpy(path, buf, strlen(buf));
 
-    JSONObject* seg = rn;
+    struct JSONObject* seg = rn;
 
     int path_len = json_get_path_length(buf);
 
@@ -908,7 +904,7 @@ struct JSONObject *json_set_path(struct JSONObject *rn, char *buf, struct JSONOb
     while(token) {
         path_len--;
 
-        JSONObject *tmp = json_get_path(seg, token);
+        struct JSONObject *tmp = json_get_path(seg, token);
         if (tmp != NULL) {
             seg = tmp;
             token = strtok_r(NULL, PATH_DELIM, &lasts);

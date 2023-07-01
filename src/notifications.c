@@ -98,7 +98,7 @@ struct NotifyItem* notify_req(int amount)
     char *buf = NULL;
     get_all_from_pipe(pipe, &buf);
  
-    JSONObject* rn = json_load(buf);
+    struct JSONObject* rn = json_load(buf);
     free(buf);
 
     if (rn == NULL || !rn->is_object) {
