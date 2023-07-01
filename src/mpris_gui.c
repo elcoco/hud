@@ -46,12 +46,13 @@ static void mpris_item_set_property(GObject *object, guint property_id, const GV
         break;
 
     case PROP_TITLE:
-        printf("set prop TITLE => %s\n", g_value_dup_string(value));
+        //printf("set prop TITLE => %s\n", g_value_dup_string(value));
         self->mp->metadata->title = g_value_dup_string(value);
         break;
 
     case PROP_ART_URL:
         self->mp->metadata->art_url = g_value_dup_string(value);
+        //printf("PROP art_url => %s\n", g_value_dup_string(value));
         break;
 
     case PROP_POSITION:
@@ -146,7 +147,7 @@ static void mpris_item_class_init(MPRISItemClass *klass)
                                                      "default_title",
                                                      G_PARAM_READWRITE);
 
-    obj_properties[PROP_ART_URL] = g_param_spec_string("art_url",
+    obj_properties[PROP_ART_URL] = g_param_spec_string("art-url",
                                                       "Art url",
                                                       "Name of the file to load and display from.",
                                                       "default_art_url",
@@ -175,7 +176,7 @@ static void mpris_item_class_init(MPRISItemClass *klass)
                                                       0,
                                                       G_PARAM_READWRITE);
 
-    obj_properties[PROP_TRACK_ID] = g_param_spec_string("track_id",
+    obj_properties[PROP_TRACK_ID] = g_param_spec_string("track-id",
                                                       "Track ID",
                                                       "Name of the file to load and display from.",
                                                       "default_art_url",
@@ -194,14 +195,12 @@ static MPRISItem *mpris_item_new(struct MPRISPlayer *mp)
     //printf ("property: %s\n", g_value_get_string (&gartist));
     //const char *names[] = {"artist"};
     //const GValue* values = {&gartist};
-    printf("creating item with namespace: %s\n", mp->namespace);
 
     //item = MPRIS_ITEM(g_object_new_with_properties(MPRIS_TYPE_ITEM, 1, names, values));
     item = g_object_new(MPRIS_TYPE_ITEM, NULL);
     item->mp = mp;
     item->namespace = strdup(mp->namespace);
     item->first_run = 1;
-    printf("endof init\n");
 
     //update_prop_str(G_OBJECT(item), "artist", mp->metadata.artist);
     //update_prop_str(G_OBJECT(item), "title", mp->metadata->title, 1);
@@ -234,7 +233,7 @@ static void on_position_changed(GObject *self, void *param, gpointer user_data)
     GValue glength = G_VALUE_INIT;
     g_value_init(&glength, G_TYPE_UINT64);
     g_object_get_property(self, "length", &glength);
-    gtk_range_set_range(GTK_RANGE(user_data), 0, g_value_get_uint64(&glength));
+    gtk_range_set_range(GTK_RANGE(user_data), 0, g_value_get_uint64(&glength) +1);
 
     GValue gposition = G_VALUE_INIT;
     g_value_init(&gposition, G_TYPE_UINT64);
@@ -244,15 +243,26 @@ static void on_position_changed(GObject *self, void *param, gpointer user_data)
     block_signals = 1;
     gtk_range_set_value(GTK_RANGE(user_data), g_value_get_uint64(&gposition));
     block_signals = 0;
+
+    printf(">>> %ld\n", g_value_get_uint64(&gposition));
+    printf(">>> %ld\n\n", g_value_get_uint64(&glength));
 }
 
 static void on_status_changed(GObject *self, void *param, gpointer user_data)
 {
+    //printf("status changed!!!!\n");
     MPRISItem *item = MPRIS_ITEM(self);
     if (item->mp->properties->status == MPRIS_STATUS_PAUSED)
         gtk_button_set_icon_name(GTK_BUTTON(user_data), "media-playback-start-symbolic");
     else if (item->mp->properties->status == MPRIS_STATUS_PLAYING)
         gtk_button_set_icon_name(GTK_BUTTON(user_data), "media-playback-pause-symbolic");
+}
+
+static void on_img_changed(GObject *self, void *param, gpointer user_data)
+{
+    MPRISItem *item = MPRIS_ITEM(self);
+    gchar *path = g_filename_from_uri(item->mp->metadata->art_url, NULL, NULL);
+    gtk_image_set_from_file(GTK_IMAGE(user_data), path);
 }
 
 static void on_toggle_clicked(GObject *self, void *param, gpointer user_data)
@@ -274,6 +284,21 @@ static void on_prev_clicked(GObject *self, void *param, gpointer user_data)
     mpris_player_prev(MPRIS_ITEM(user_data)->namespace);
 }
 
+static gchar* on_scale_format_value(GtkScale *scale, gdouble value, gpointer user_data)
+{
+    unsigned int t = value / 1000000;
+    unsigned int hours = t / (60 * 60);
+    t -= hours * (60*60);
+    unsigned int minutes = t / (60);
+    t -= minutes * 60;
+    unsigned int seconds = t;
+
+    if (hours > 0)
+        return g_strdup_printf("%2d:%02d:%02d", hours, minutes, seconds);
+    else
+        return g_strdup_printf("%02d:%02d", minutes, seconds);
+}
+
 static void on_scale_value_changed(GObject *self, gpointer user_data)
 {
     // look at block so we don't end up in slider loop of dooooom!
@@ -288,7 +313,6 @@ static void on_scale_value_changed(GObject *self, gpointer user_data)
 static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
 {
     MPRISItem *item = gtk_list_item_get_item(listitem);
-    printf("binding item with namespace: %s\n", item->namespace);
 
     GtkWidget *main_box = gtk_list_item_get_child(listitem);
     GtkWidget *header_box = gtk_widget_get_first_child(main_box);
@@ -309,16 +333,24 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     // callback to adjust range and update position
     g_signal_connect(item, "notify::position",  G_CALLBACK(on_position_changed), controls);
     g_signal_connect(item, "notify::status",  G_CALLBACK(on_status_changed), toggle_btn);
+
     g_signal_connect(toggle_btn, "clicked",  G_CALLBACK(on_toggle_clicked), item);
     g_signal_connect(next_btn, "clicked",  G_CALLBACK(on_next_clicked), item);
     g_signal_connect(prev_btn, "clicked",  G_CALLBACK(on_prev_clicked), item);
     g_signal_connect(controls, "value-changed",  G_CALLBACK(on_scale_value_changed), item);
 
+    gtk_scale_set_format_value_func(GTK_SCALE(controls), on_scale_format_value, NULL, NULL);
+    //g_signal_connect(controls, "format-value",  G_CALLBACK(on_scale_format_value), NULL);
+
     // Bind the artist property from our custom object to the label property that displays text
     // When we update the property the label will automatically change
     g_object_bind_property(item, "artist", artist_lb, "label", 0);
     g_object_bind_property(item, "title", title_lb, "label", 0);
-    g_object_bind_property(item, "art_url", artwork_img, "file", 0);
+
+    g_signal_connect(item, "notify::art-url",  G_CALLBACK(on_img_changed), artwork_img);
+    //g_object_bind_property(item, "art-url", artwork_img, "file", 0);
+
+
 }
 
 MPRISItem* mpris_model_contains_namespace(GListModel *model, char *namespace)
@@ -404,15 +436,19 @@ int mpris_get_data_thread(void *args)
 
         update_prop_str(G_OBJECT(item), "artist", mp->metadata->artist, item->first_run);
         update_prop_str(G_OBJECT(item), "title", mp->metadata->title, item->first_run);
-        update_prop_str(G_OBJECT(item), "art_url", mp->metadata->art_url, item->first_run);
+        update_prop_str(G_OBJECT(item), "art-url", mp->metadata->art_url, item->first_run);
         update_prop_uint64(G_OBJECT(item), "length", mp->metadata->length, item->first_run);
         update_prop_uint64(G_OBJECT(item), "position", mp->properties->position, item->first_run);
         update_prop_int(G_OBJECT(item), "status", mp->properties->status, item->first_run);
-        update_prop_str(G_OBJECT(item), "track_id", mp->metadata->track_id, item->first_run);
+        update_prop_str(G_OBJECT(item), "track-id", mp->metadata->track_id, item->first_run);
+
+        //printf("arturl: %s -- %s\n", mp->metadata->art_url, item->mp->metadata->art_url);
+
         mp = mp->next;
 
         item->first_run = 0;
     }
+    //mpris_player_debug_all(mp_head);
     return 1;
 }
 

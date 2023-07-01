@@ -16,13 +16,10 @@ struct _MPRISItem {
 
     char *namespace;
     int first_run;
-    
-
 };
 
 #define MPRIS_UI_PATH "/resources/ui/gui.ui"
 #define MPRIS_UPDATE_INTERVAL_MS 1000
-
 
 
 GObject* mpris_gui_init(struct Module *m);

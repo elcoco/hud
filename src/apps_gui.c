@@ -54,14 +54,29 @@ static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoi
     /* Setup new rows */
 
     GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    //gtk_widget_set_margin_start(vbox, 0);
+    //gtk_widget_set_margin_end(vbox, 0);
+
     gtk_list_item_set_child(listitem, vbox);
 
     GtkWidget *image = gtk_image_new();
-    gtk_image_set_icon_size(GTK_IMAGE(image), GTK_ICON_SIZE_LARGE);
+    //gtk_image_set_icon_size(GTK_IMAGE(image), GTK_ICON_SIZE_LARGE);
     gtk_image_set_pixel_size(GTK_IMAGE(image), 100);
+
+    //gtk_widget_set_margin_start(image, 0);
+    //gtk_widget_set_margin_end(image, 0);
+
     gtk_box_append(GTK_BOX(vbox), image);
 
     GtkWidget *lb_name = gtk_label_new(NULL);
+    //gtk_widget_set_margin_start(lb_name, 0);
+    //gtk_widget_set_margin_end(lb_name, 0);
+    //gtk_widget_set_halign(lb_name, GTK_ALIGN_CENTER);
+    //gtk_widget_set_hexpand(lb_name, 0);
+    //gtk_label_set_max_width_chars(GTK_LABEL(lb_name), 10);
+
+    gtk_label_set_justify(GTK_LABEL(lb_name), GTK_JUSTIFY_CENTER);
+    gtk_label_set_wrap(GTK_LABEL(lb_name), 1);
     gtk_box_append(GTK_BOX(vbox), lb_name);
 }
 
@@ -77,6 +92,14 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     GtkWidget *vbox = gtk_list_item_get_child(listitem);
     GtkWidget *image = gtk_widget_get_first_child(GTK_WIDGET(vbox));
     GtkWidget *lb_name = gtk_widget_get_next_sibling(GTK_WIDGET(image));
+    //gtk_widget_set_margin_start(image, 0);
+    //gtk_widget_set_margin_end(image, 0);
+
+    //gtk_widget_set_margin_start(vbox, 0);
+    //gtk_widget_set_margin_end(vbox, 0);
+
+    //gtk_widget_set_margin_start(lb_name, 0);
+    //gtk_widget_set_margin_end(lb_name, 0);
 
     gtk_image_set_from_gicon(GTK_IMAGE(image), g_app_info_get_icon(APP_ITEM(item)->app_info));
     gtk_label_set_text(GTK_LABEL(lb_name), g_app_info_get_name(APP_ITEM(item)->app_info));

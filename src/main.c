@@ -41,7 +41,7 @@ static gboolean on_switch_stackpage_cb(GtkWidget *widget, GVariant *args, gpoint
     return 1;
 }
 
-gint on_glist_find_custom_cb(gconstpointer a, gconstpointer b)
+static gint on_glist_find_custom_cb(gconstpointer a, gconstpointer b)
 {
     /* Custom callback for finding stuff in a glist linked list */
     if (strcmp(a, b) == 0)
@@ -90,7 +90,7 @@ static gboolean on_focus_tab_next_cb(GtkWidget *widget, GVariant *args, gpointer
     return 1;
 }
 
-int on_accept_cb(void* arg)
+static int on_accept_cb(void* arg)
 {
     gtk_widget_set_visible(GTK_WIDGET(arg), 1);
     return 0;
@@ -132,21 +132,7 @@ static void setup_keys(GtkWidget *widget)
                                                           gtk_callback_action_new(on_focus_tab_prev_cb, names, NULL)));
 }
 
-gboolean on_get_focus_cb(GtkWidget *widget, gpointer data)
-{
-    struct Module *m = data;
-    module_unlock(m);
-    return 1;
-}
-
-gboolean on_lost_focus_cb(GtkWidget *widget, gpointer data)
-{
-    struct Module *m = data;
-    module_lock(m);
-    return 1;
-}
-
-gboolean on_stack_moved_focus_cb(GtkWidget *widget, GObject *pspec, gpointer data)
+static gboolean on_stack_moved_focus_cb(GtkWidget *widget, GObject *pspec, gpointer data)
 {
     /* lock all modules except for the visible one */
     const char *name = gtk_stack_get_visible_child_name(GTK_STACK(widget));
@@ -212,7 +198,7 @@ static void app_activate_cb(GtkApplication *app)
 
     //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), state.focus_page);
     
-    GtkRecentManager *manager = gtk_recent_manager_get_default ();
+    //GtkRecentManager *manager = gtk_recent_manager_get_default ();
     
 
     setup_keys(GTK_WIDGET(w_stack));
@@ -221,7 +207,7 @@ static void app_activate_cb(GtkApplication *app)
     g_object_unref(builder);
 }
 
-void show_help()
+static void show_help()
 {
     printf("HUD :: Hud stuff\n");
     printf("Optional args:\n");
@@ -231,7 +217,7 @@ void show_help()
     printf("  -h            Show help\n");
 }
 
-int parse_args(struct State *s, int argc, char **argv)
+static int parse_args(struct State *s, int argc, char **argv)
 {
     int option;
     printf("Parsing args\n");
@@ -261,7 +247,7 @@ int parse_args(struct State *s, int argc, char **argv)
     return 1;
 }
 
-void init_state(struct State *s)
+static void init_state(struct State *s)
 {
     /* Set defaults, can be overridden in parse_args() */
     s->hide_on_close = 0;

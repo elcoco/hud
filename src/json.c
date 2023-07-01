@@ -1,6 +1,29 @@
 #include "json.h"
 
-void debug(char* fmt, ...)
+static JSONStatus json_parse(JSONObject* jo, Position* pos);
+static JSONStatus json_parse_object(JSONObject* jo, Position* pos);
+static JSONStatus json_parse_array(JSONObject* jo, Position* pos);
+static JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr);
+static JSONStatus json_parse_key(JSONObject* jo, Position* pos);
+static JSONStatus json_parse_bool(JSONObject* jo, Position* pos);
+static JSONStatus json_parse_number(JSONObject* jo, Position* pos);
+static void json_object_add_child(JSONObject *parent, JSONObject *child);
+static char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char** buf);
+static int count_backslashes(Position *pos);
+static char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf);
+static char* pos_next(Position *pos);
+static void print_error(Position *pos, uint32_t amount);
+static void get_spaces(char *buf, uint8_t spaces);
+static int json_atoi_err(char *str);
+static int json_get_path_length(char *path);
+static void debug(char* fmt, ...);
+static int is_last_item(JSONObject *jo);
+static void json_object_to_string_rec(JSONObject *jo, char **buf, uint32_t level, int spaces);
+static void write_to_string(char **buf, char *fmt, ...);
+
+
+
+static void debug(char* fmt, ...)
 {
     char buf[MAX_BUF];
 
@@ -13,6 +36,127 @@ void debug(char* fmt, ...)
     //FILE* fp = fopen(LOG_PATH, "a");
     //fputs(buf, fp);
     //fclose(fp);
+}
+
+static int is_last_item(JSONObject *jo)
+{
+    /* Check if object is last in an array or object to see
+     * if we need to use a comma in json render */
+
+    // is last in array/object
+    if (jo->parent != NULL && (jo->parent->is_array || jo->parent->is_object))
+        //return jo->index == jo->parent->length-1;
+        return jo->next == NULL;
+
+    // is rootnode
+    if (jo->parent == NULL && jo->length > 0)
+        return 1;
+    return 0;
+}
+
+static int json_get_path_length(char *path)
+{
+    char tmp[256] = "";
+    strncpy(tmp, path, strlen(path));
+    strtok(tmp, PATH_DELIM);
+    int i = 1;
+
+    while(strtok(NULL, PATH_DELIM))
+        i++;
+
+    return i;
+}
+
+static void write_to_string(char **buf, char *fmt, ...)
+{
+    /* Allocate and write to string, return new size of allocated space */
+    int chunk_size = 256;
+    char src_buf[512] = "";
+
+    va_list ptr;
+    va_start(ptr, fmt);
+    vsprintf(src_buf, fmt, ptr);
+    va_end(ptr);
+
+    if (*buf == NULL) {
+        *buf = malloc(chunk_size);
+        strcpy(*buf, "");
+    }
+
+    size_t old_nchunks = (strlen(*buf) / chunk_size) + 1;
+    size_t new_nchunks = ((strlen(*buf) + strlen(src_buf)) / chunk_size) + 1;
+
+    if (old_nchunks < new_nchunks)
+        *buf = realloc(*buf, new_nchunks * chunk_size);
+
+    strncat(*buf, src_buf, strlen(src_buf));
+}
+
+static void json_object_to_string_rec(JSONObject *jo, char **buf, uint32_t level, int spaces)
+{
+    /* The function that does the recursive string stuff */
+    char space[level+1];
+    get_spaces(space, level);
+
+    if (jo != NULL) {
+        write_to_string(buf, "%s", space);
+
+        if (jo->key)
+            write_to_string(buf, "\"%s\": ", jo->key);
+
+        switch (jo->dtype) {
+
+            case JSON_NUMBER:
+                write_to_string(buf, "%f", json_get_number(jo));
+                break;
+
+            case JSON_STRING:
+                write_to_string(buf, "\"%s\"", json_get_string(jo));
+                break;
+
+            case JSON_BOOL:
+                write_to_string(buf, "%s", json_get_bool(jo) ? "true" : "false");
+                break;
+
+            case JSON_ARRAY:
+                write_to_string(buf, "[\n");
+                json_object_to_string_rec(jo->value, buf, level+spaces, spaces);
+                write_to_string(buf, "%s]", space);
+
+                break;
+
+            case JSON_OBJECT:
+                write_to_string(buf, "{\n");
+                json_object_to_string_rec(jo->value, buf, level+spaces, spaces);
+                write_to_string(buf, "%s}", space);
+                break;
+
+            case JSON_UNKNOWN:
+                debug("%s[UNKNOWN]%s\n", buf, JCOL_UNKNOWN, JRESET);
+                break;
+        }
+        if (!is_last_item(jo))
+            write_to_string(buf, ",\n");
+        else
+            write_to_string(buf, "\n");
+
+        if (jo->next != NULL)
+            json_object_to_string_rec(jo->next, buf, level, spaces);
+    }
+}
+
+
+static int json_atoi_err(char *str)
+{
+
+    int num;
+    char *endptr;
+
+    //if ((num = atoi(str)) == 0)
+    num = strtol(str, &endptr, 0);
+    if (endptr == str)
+        return -1;
+    return num;
 }
 
 /* create string of n amount of spaces */
@@ -54,99 +198,7 @@ static void print_error(Position *pos, uint32_t amount) {
     printf("%s%s%c%s<--%s%s\n", lctext, JRED, *(pos->c), JBLUE, JRESET, rctext);
 }
 
-void json_print(JSONObject* jo, uint32_t level)
-{
-    uint8_t incr = 3;
-    char space[level+1];
-    get_spaces(space, level);
-
-    if (jo != NULL) {
-        debug("%s", space);
-        if (jo->parent && jo->index >= 0 && jo->parent->dtype == JSON_ARRAY)
-            debug("%s%d:%s ", JCOL_ARR_INDEX, jo->index, JRESET);
-        if (jo->key)
-            debug("%s%s:%s ", JCOL_KEY, jo->key, JRESET);
-        //printf("key: %s, dtype = %d\n", jo->key, jo->dtype);
-
-        switch (jo->dtype) {
-
-            case JSON_NUMBER:
-                debug("%s%f%s\n", JCOL_NUM, json_get_number(jo), JRESET);
-                break;
-
-            case JSON_STRING:
-                debug("%s\"%s\"%s\n", JCOL_STR, json_get_string(jo), JRESET);
-                break;
-
-            case JSON_BOOL:
-                debug("%s%s%s\n", JCOL_BOOL, json_get_bool(jo) ? "true" : "false", JRESET);
-                break;
-
-            case JSON_ARRAY:
-                debug("%s[ARRAY]%s\n", JCOL_ARR, JRESET);
-                json_print(jo->value, level+incr);
-                break;
-
-            case JSON_OBJECT:
-                debug("%s[OBJECT]%s\n", JCOL_OBJ, JRESET);
-                json_print(jo->value, level+incr);
-                break;
-
-            case JSON_UNKNOWN:
-                debug("%s[UNKNOWN]%s\n", JCOL_UNKNOWN, JRESET);
-                break;
-        }
-
-        if (jo->next != NULL)
-            json_print(jo->next, level);
-    }
-}
-
-double json_get_number(JSONObject* jo)
-{
-    return *((double*)jo->value);
-}
-
-char* json_get_string(JSONObject* jo)
-{
-    return (char*)jo->value;
-}
-
-bool json_get_bool(JSONObject* jo)
-{
-    return *((bool*)jo->value);
-}
-
-/* read file from disk and parse JSON */
-JSONObject* json_load_file(char *path)
-{
-    // read file in chunks and dynamically allocate memory for buffer
-    uint32_t chunk_size = 1000;   // read file in chunks
-    uint32_t offset     = 0;    // offset in buffer to write data to
-    uint32_t n_read     = 0;    // store amount of chars read from file
-    FILE *fp = fopen(path, "r");
-
-    if (fp == NULL) {
-        printf("File doesn't exist\n");
-        return NULL;
-    }
-
-    char *buf = calloc(chunk_size, 1);
-
-    while ((n_read=fread(buf + offset, 1, chunk_size, fp)) > 0) {
-        offset += n_read;
-        buf = realloc(buf, offset+chunk_size);
-    }
-
-    buf[offset] = '\0';     // properly end string array
-    fclose(fp);
-    printf("read: %ld bytes\n", strlen(buf));
-
-    JSONObject* jo = json_load(buf);
-    return jo;
-}
-
-char* pos_next(Position *pos)
+static char* pos_next(Position *pos)
 {
     /* Increment position in json string */
     // keep track of rows/cols position
@@ -172,7 +224,7 @@ char* pos_next(Position *pos)
     return pos->c;
 }
 
-char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf)
+static char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf)
 {
     /* fast forward until a char from search_lst is found
      * Save all chars in buf until a char from search_lst is found
@@ -226,7 +278,7 @@ char fforward_skip_escaped(Position* pos, char* search_lst, char* expected_lst, 
     return ret;
 }
 
-int count_backslashes(Position *pos)
+static int count_backslashes(Position *pos)
 {
     int count = 0;
 
@@ -236,7 +288,7 @@ int count_backslashes(Position *pos)
     return count;
 }
 
-char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char** buf)
+static char fforward_skip_escaped_grow(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char** buf)
 {
     /* fast forward until a char from search_lst is found
      * Save all chars in buf until a char from search_lst is found
@@ -303,56 +355,39 @@ cleanup_on_err:
     return -1;
 }
 
-JSONObject* json_object_init(JSONObject* parent)
+static void json_object_add_child(JSONObject *parent, JSONObject *child)
 {
-    JSONObject* jo = malloc(sizeof(JSONObject));
-    jo->parent = parent;
-    jo->children = NULL;
-    jo->prev = NULL;
-    jo->next = NULL;
+    /* we are not creating array here but in json_parse_object().
+     * So we should either come up with a solution or drop the functionality
+     */
+    parent->length++;
+    child->parent = parent;
 
-    jo->length = 0;
-    jo->index = -1;
+    // value is head node
+    if (parent->value == NULL) {
 
-    jo->dtype = JSON_UNKNOWN;
-
-    jo->key = NULL;
-    jo->value = NULL;
-
-    jo->is_string = false;
-    jo->is_number  = false;
-    jo->is_bool   = false;
-    jo->is_array  = false;
-    jo->is_object = false;
-    return jo;
-}
-
-void json_obj_destroy(JSONObject* jo)
-{
-    //if (jo->dtype == JSON_OBJECT)
-    //    free(jo->key);
-
-    if (jo->key != NULL)
-        free(jo->key);
-
-
-    if (jo->dtype == JSON_OBJECT || jo->dtype == JSON_ARRAY) {
-
-        JSONObject* child = jo->value;
-        while (child != NULL) {
-            JSONObject* tmp = child->next;
-            json_obj_destroy(child);
-            child = tmp;
-        }
-        free(jo->children);
-    } else {
-        free(jo->value);
+        // child is first node in linked list
+        parent->value = child;
+        child->prev = NULL;
+        child->next = NULL;
+        child->index = 0;
     }
+    else {
+        // add to end of linked list
+        JSONObject *prev = parent->value;
 
-    free(jo);
+        // get last item in ll
+        while (prev->next != NULL)
+            prev = prev->next;
+
+        prev->next = child;
+        child->prev = prev;
+        child->next = NULL;
+        child->index = child->prev->index + 1;
+    }
 }
 
-JSONStatus json_parse_number(JSONObject* jo, Position* pos)
+static JSONStatus json_parse_number(JSONObject* jo, Position* pos)
 {
     /* All numbers are floats */
     char tmp[MAX_BUF] = {'\0'};
@@ -376,7 +411,7 @@ JSONStatus json_parse_number(JSONObject* jo, Position* pos)
     return STATUS_SUCCESS;
 }
 
-JSONStatus json_parse_bool(JSONObject* jo, Position* pos)
+static JSONStatus json_parse_bool(JSONObject* jo, Position* pos)
 {
     char tmp[MAX_BUF] = {'\0'};
     char c;
@@ -401,7 +436,7 @@ JSONStatus json_parse_bool(JSONObject* jo, Position* pos)
     return STATUS_SUCCESS;
 }
 
-JSONStatus json_parse_key(JSONObject* jo, Position* pos)
+static JSONStatus json_parse_key(JSONObject* jo, Position* pos)
 {
     /* Parse key part of an object */
     char c;
@@ -448,7 +483,7 @@ JSONStatus json_parse_key(JSONObject* jo, Position* pos)
     return STATUS_SUCCESS;
 }
 
-JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
+static JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
 {
     char c;
 
@@ -490,14 +525,11 @@ JSONStatus json_parse_string(JSONObject* jo, Position* pos, char quote_chr)
     return STATUS_SUCCESS;
 }
 
-JSONStatus json_parse_array(JSONObject* jo, Position* pos)
+static JSONStatus json_parse_array(JSONObject* jo, Position* pos)
 {
     jo->dtype = JSON_ARRAY;
-    jo->length = 0;
+    //jo->length = 0;
     jo->is_array = true;
-
-    JSONObject* head = NULL;
-    JSONObject* tail = NULL;
 
     while (1) {
         JSONObject* child = json_object_init(jo);
@@ -519,41 +551,14 @@ JSONStatus json_parse_array(JSONObject* jo, Position* pos)
             json_obj_destroy(child);
             return PARSE_ERROR;
         }
-
-        if (head == NULL) {
-            head = child;
-            tail = child;
-        } else {
-            JSONObject* prev = tail;
-            prev->next = child;
-            child->prev = prev;
-            tail = child;
-        }
-        jo->length++;
     }
-    jo->value = head;
-    //tail->next = NULL;
-
-    // we know the index length now so lets create the array
-    jo->children = malloc(jo->length * sizeof(JSONObject));
-    JSONObject* child = jo->value;
-    for (int i=0 ; i<jo->length ; i++) {
-        jo->children[i] = child;
-        child->index = i;
-        child = child->next;
-    }
-
     return STATUS_SUCCESS;
 }
 
-JSONStatus json_parse_object(JSONObject* jo, Position* pos)
+static JSONStatus json_parse_object(JSONObject* jo, Position* pos)
 {
     jo->dtype = JSON_OBJECT;
-    jo->length = 0;
     jo->is_object = true;
-
-    JSONObject* head = NULL;
-    JSONObject* tail = NULL;
 
     while (1) {
         JSONObject* child = json_object_init(jo);
@@ -583,34 +588,16 @@ JSONStatus json_parse_object(JSONObject* jo, Position* pos)
             return PARSE_ERROR;
         }
 
-        if (head == NULL) {
-            head = child;
-            tail = child;
-        } else {
-            JSONObject* prev = tail;
-            prev->next = child;
-            child->prev = prev;
-            tail = child;
+        if (strcmp(child->key, "GlossSee") == 0) {
+            printf("**************************************\n");
+            json_print(child->parent, 0);
+            printf("**************************************\n");
         }
-        jo->length++;
-
     }
-    jo->value = head;
-    //tail->next = NULL;
-
-    // we know the index length now so lets create the array
-    jo->children = malloc(jo->length * sizeof(JSONObject));
-    JSONObject* child = jo->value;
-    for (int i=0 ; i<jo->length ; i++) {
-        jo->children[i] = child;
-        child->index = i;
-        child = child->next;
-    }
-
     return STATUS_SUCCESS;
 }
 
-JSONStatus json_parse(JSONObject* jo, Position* pos)
+static JSONStatus json_parse(JSONObject* jo, Position* pos)
 {
     char tmp[MAX_BUF] = {'\0'};
     char c;
@@ -653,6 +640,8 @@ JSONStatus json_parse(JSONObject* jo, Position* pos)
     }
 }
 
+
+
 JSONObject* json_load(char* buf)
 {
     Position* pos = malloc(sizeof(Position));
@@ -673,6 +662,195 @@ JSONObject* json_load(char* buf)
     return (ret < 0) ? NULL : root;
 }
 
+/* read file from disk and parse JSON */
+JSONObject* json_load_file(char *path)
+{
+    // read file in chunks and dynamically allocate memory for buffer
+    uint32_t chunk_size = 1000;   // read file in chunks
+    uint32_t offset     = 0;    // offset in buffer to write data to
+    uint32_t n_read     = 0;    // store amount of chars read from file
+    FILE *fp = fopen(path, "r");
+
+    if (fp == NULL) {
+        printf("File doesn't exist\n");
+        return NULL;
+    }
+
+    char *buf = calloc(chunk_size, 1);
+
+    while ((n_read=fread(buf + offset, 1, chunk_size, fp)) > 0) {
+        offset += n_read;
+        buf = realloc(buf, offset+chunk_size);
+    }
+
+    buf[offset] = '\0';     // properly end string array
+    fclose(fp);
+    printf("read: %ld bytes\n", strlen(buf));
+
+    JSONObject* jo = json_load(buf);
+    return jo;
+}
+
+char* json_object_to_string(JSONObject *jo, int spaces)
+{
+    char *buf = NULL;
+    json_object_to_string_rec(jo, &buf, 0, spaces);
+    return buf;
+}
+
+int json_object_to_file(JSONObject *jo, char *path, int spaces)
+{
+    char *buf = json_object_to_string(jo, spaces);
+    FILE *fp = fopen(path, "wb");
+    printf("buf: %s\n", buf);
+    printf("buflen: %ld\n", strlen(buf));
+
+    if (fp == NULL) {
+        printf("Failed to open file for writing\n");
+        return -1;
+    }
+    size_t n;
+    if ((n = fwrite(buf, 1, strlen(buf), fp)) < strlen(buf)) {
+        printf("Failed to write to file (%ld bytes written)\n", n);
+        return -1;
+    }
+    fclose(fp);
+    return 0;
+}
+
+
+JSONObject* json_object_init(JSONObject* parent)
+{
+    JSONObject* jo = malloc(sizeof(JSONObject));
+    jo->parent = parent;
+    jo->prev = NULL;
+    jo->next = NULL;
+
+    jo->length = 0;
+    jo->index = -1;
+
+    jo->dtype = JSON_UNKNOWN;
+
+    jo->key = NULL;
+    jo->value = NULL;
+
+    jo->is_string = false;
+    jo->is_number  = false;
+    jo->is_bool   = false;
+    jo->is_array  = false;
+    jo->is_object = false;
+
+    if (parent != NULL && (parent->is_array || parent->is_object))
+        json_object_add_child(parent, jo);
+
+    return jo;
+}
+
+void json_obj_destroy(JSONObject* jo)
+{
+    /* TODO when removing an array index the indexes are not continuous anymore so 
+     * they should be rebuilt
+     */
+
+    if (jo->key != NULL)
+        free(jo->key);
+
+    if (jo->parent != NULL && (jo->parent->is_array || jo->parent->is_object)) {
+
+        // remove child from linked list
+        if (jo->prev && jo->next) {
+            jo->prev->next = jo->next;
+            jo->next->prev = jo->prev->next;
+        }
+        else if (jo->prev) {
+            jo->prev->next = NULL;
+        }
+        else if (jo->next) {
+            jo->next->prev = NULL;
+        }
+        
+        if (jo->parent->length > 0)
+            jo->parent->length--;
+    }
+
+    if (jo->dtype == JSON_OBJECT || jo->dtype == JSON_ARRAY) {
+
+        JSONObject* child = jo->value;
+        while (child != NULL) {
+            JSONObject* tmp = child->next;
+            json_obj_destroy(child);
+            child = tmp;
+        }
+    } else {
+        free(jo->value);
+    }
+
+    free(jo);
+}
+
+void json_print(JSONObject* jo, uint32_t level)
+{
+    uint8_t incr = 3;
+    char space[level+1];
+    get_spaces(space, level);
+
+    if (jo != NULL) {
+        debug("%s", space);
+        if (jo->parent && jo->index >= 0 && jo->parent->dtype == JSON_ARRAY)
+            debug("%s%d:%s ", JCOL_ARR_INDEX, jo->index, JRESET);
+        if (jo->key)
+            debug("%s%s:%s ", JCOL_KEY, jo->key, JRESET);
+        //printf("key: %s, dtype = %d\n", jo->key, jo->dtype);
+
+        switch (jo->dtype) {
+
+            case JSON_NUMBER:
+                debug("%s%f%s\n", JCOL_NUM, json_get_number(jo), JRESET);
+                break;
+
+            case JSON_STRING:
+                debug("%s\"%s\"%s\n", JCOL_STR, json_get_string(jo), JRESET);
+                break;
+
+            case JSON_BOOL:
+                debug("%s%s%s\n", JCOL_BOOL, json_get_bool(jo) ? "true" : "false", JRESET);
+                break;
+
+            case JSON_ARRAY:
+                debug("%s[ARRAY]%s\n", JCOL_ARR, JRESET);
+                json_print(jo->value, level+incr);
+                break;
+
+            case JSON_OBJECT:
+                debug("%s[OBJECT]%s\n", JCOL_OBJ, JRESET);
+                json_print(jo->value, level+incr);
+                break;
+
+            case JSON_UNKNOWN:
+                debug("%s[UNKNOWN]%s\n", JCOL_UNKNOWN, JRESET);
+                break;
+        }
+
+        if (jo->next != NULL)
+            json_print(jo->next, level);
+    }
+}
+
+double json_get_number(JSONObject* jo)
+{
+    return *((double*)jo->value);
+}
+
+char* json_get_string(JSONObject* jo)
+{
+    return (char*)jo->value;
+}
+
+bool json_get_bool(JSONObject* jo)
+{
+    return *((bool*)jo->value);
+}
+
 struct JSONObject* json_get_path(struct JSONObject *rn, char *buf)
 {
     /* Find a path given as a string and return node if found */
@@ -686,7 +864,8 @@ struct JSONObject* json_get_path(struct JSONObject *rn, char *buf)
     strncpy(path, buf, strlen(buf));
 
     JSONObject* seg = rn;
-    char *token = strtok(path, PATH_DELIM);
+    char *lasts;
+    char *token = strtok_r(path, PATH_DELIM, &lasts);
 
     while(token) {
         seg = seg->value;
@@ -695,13 +874,90 @@ struct JSONObject* json_get_path(struct JSONObject *rn, char *buf)
             if (seg == NULL)
                 return NULL;
 
-            if (strncmp(token, seg->key, strlen(token)) == 0)
+            if (seg->parent != NULL && seg->parent->is_array && json_atoi_err(token) >= 0 && seg->index == json_atoi_err(token))
                 break;
+
+            if (seg->key != NULL && strncmp(token, seg->key, strlen(token)) == 0)
+                break;
+
 
             seg = seg->next;
         }
 
-        token = strtok(NULL, PATH_DELIM);
+        token = strtok_r(NULL, PATH_DELIM, &lasts);
     }
     return seg;
+}
+
+struct JSONObject *json_set_path(struct JSONObject *rn, char *buf, struct JSONObject *child)
+{
+    /* Set child as a child in object or array at end of path */
+    if (rn == NULL)
+        return NULL;
+
+    char path[256] = "";
+    strncpy(path, buf, strlen(buf));
+
+    JSONObject* seg = rn;
+
+    int path_len = json_get_path_length(buf);
+
+    char *lasts;
+    char *token = strtok_r(path, PATH_DELIM, &lasts);
+
+    while(token) {
+        path_len--;
+
+        JSONObject *tmp = json_get_path(seg, token);
+        if (tmp != NULL) {
+            seg = tmp;
+            token = strtok_r(NULL, PATH_DELIM, &lasts);
+            continue;
+        }
+
+        // is an array index
+        if (json_atoi_err(token) >= 0) {
+
+            if (seg != NULL && seg->is_array) {
+                // add new node to array
+                tmp = json_object_init(seg);
+                tmp->dtype = JSON_OBJECT;
+                tmp->is_object = true;
+                seg = tmp;
+            }
+
+            else if (seg != NULL && seg->is_object && seg->length == 0) {
+
+                // turn empty parent object into an array
+                seg->dtype = JSON_ARRAY;
+                seg->is_array = 1;
+
+                // add new node to array
+                tmp = json_object_init(seg);
+                tmp->dtype = JSON_OBJECT;
+                tmp->is_object = true;
+                seg = tmp;
+            }
+            else {
+                printf("ERROR: parent is not an aray\n");
+                return NULL;
+            }
+
+        }
+        else {
+            // Create new object
+            tmp = json_object_init(seg);
+            tmp->dtype = JSON_OBJECT;
+            tmp->is_object = true;
+            tmp->key = strdup(token);
+            seg = tmp;
+        }
+
+        token = strtok_r(NULL, PATH_DELIM, &lasts);
+    }
+
+    // last segment in path should hold the value
+    //printf("is last: %s\n", token);
+    json_object_add_child(seg, child);
+    return child;
 }

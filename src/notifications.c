@@ -106,12 +106,10 @@ struct NotifyItem* notify_req(int amount)
         return NULL;
     }
 
-    // TODO path with mixed keys/array indices should be possible
-    struct JSONObject *n1 = json_get_path(rn, "data");
+    struct JSONObject *msgs = json_get_path(rn, "data/0");
 
-    assert(n1 != NULL);
+    assert(msgs != NULL);
 
-    struct JSONObject *msgs = n1->children[0];
     struct JSONObject *msg = msgs->value;
 
     struct NotifyItem *ni_tmp = NULL;

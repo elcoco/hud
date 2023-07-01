@@ -15,9 +15,11 @@
     </child>
     <child>
       <object class="GtkScrolledWindow" id="apps_sw">
+        <property name="margin-top">50</property>
         <child>
           <object class="GtkGridView" id="apps_gv">
             <property name="halign">center</property>
+            <property name="max-columns">100</property>
             <property name="vexpand">True</property>
           </object>
         </child>
@@ -152,26 +154,52 @@
     </child>
   </object>
   <object class="GtkWindow" id="main_win">
-    <property name="decorated">False</property>
     <property name="default-height">800</property>
     <property name="default-width">800</property>
+    <property name="maximized">True</property>
     <property name="opacity">0.8</property>
     <child>
       <object class="GtkBox">
         <property name="orientation">vertical</property>
         <child>
-          <object class="GtkStack" id="main_stack">
-            <property name="margin-end">10</property>
-            <property name="margin-start">10</property>
-            <property name="transition-type">crossfade</property>
+          <object class="GtkCenterBox">
+            <property name="margin-bottom">50</property>
+            <property name="margin-top">20</property>
+            <property name="vexpand">True</property>
+            <child type="center">
+              <object class="GtkBox">
+                <property name="halign">center</property>
+                <property name="orientation">vertical</property>
+                <property name="width-request">1000</property>
+                <child>
+                  <object class="GtkStack" id="main_stack">
+                    <property name="margin-end">10</property>
+                    <property name="margin-start">10</property>
+                    <property name="transition-type">crossfade</property>
+                  </object>
+                </child>
+                <child>
+                  <object class="GtkStackSwitcher">
+                    <property name="halign">center</property>
+                    <property name="margin-bottom">10</property>
+                    <property name="margin-top">10</property>
+                    <property name="stack">main_stack</property>
+                  </object>
+                </child>
+              </object>
+            </child>
           </object>
         </child>
         <child>
-          <object class="GtkStackSwitcher">
+          <object class="GtkBox">
             <property name="halign">center</property>
-            <property name="margin-bottom">10</property>
-            <property name="margin-top">10</property>
-            <property name="stack">main_stack</property>
+            <property name="valign">end</property>
+            <child>
+              <object class="GtkLabel">
+                <property name="halign">center</property>
+                <property name="label">bever</property>
+              </object>
+            </child>
           </object>
         </child>
       </object>
@@ -181,6 +209,10 @@
     <property name="orientation">vertical</property>
   </object>
   <object class="GtkBox" id="mpris_player_box">
+    <property name="margin-bottom">5</property>
+    <property name="margin-end">5</property>
+    <property name="margin-start">5</property>
+    <property name="margin-top">5</property>
     <property name="orientation">vertical</property>
     <child>
       <object class="GtkBox">
@@ -188,6 +220,7 @@
           <object class="GtkImage" id="mpris_artwork_image">
             <property name="icon-name">applications-science</property>
             <property name="icon-size">large</property>
+            <property name="margin-end">10</property>
           </object>
         </child>
         <child>

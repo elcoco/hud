@@ -55,6 +55,9 @@ enum JSONStatus {
     END_OF_OBJECT  = 2
 };
 
+#define JSON_OBJ_STR "{ \"%s\", "
+
+
 struct JSONObject {
     /* When object is the root object, parent is NULL */
     JSONObject* parent;
@@ -66,18 +69,15 @@ struct JSONObject {
 
     /* In case of int/float/bool/string:
      *      - value can be accessed by using one of the helper functions
-     *      - children is NULL
      */
     void* value;
 
     /* In case of array/object:
-     *      - the children is an array
      *      - array length is accessed by using jo->length attribute
      *      - children can be iterated as a linked list by using value as the head node
      */
-    JSONObject** children;
 
-    // in case of object or array, this stores the array length
+    // in case of object or array, this stores the linked list length
     int32_t length;
 
     // index to the array or object
@@ -110,23 +110,18 @@ struct Position {
 JSONObject* json_load(char* buf);
 JSONObject* json_load_file(char *path);
 void        json_print(JSONObject* jo, uint32_t level);
-void json_obj_destroy(JSONObject* jo);
+void        json_obj_destroy(JSONObject* jo);
+char*       json_object_to_string(JSONObject *jo, int spaces);
+int         json_object_to_file(JSONObject *jo, char *path, int spaces);
+
+JSONObject* json_object_init(JSONObject* parent);
 
 // get value casted to the appropriate type
 char*       json_get_string(JSONObject* jo);
 double      json_get_number(JSONObject* jo);
 bool        json_get_bool(JSONObject* jo);
 
-// read json string
-JSONStatus     json_parse(JSONObject* jo, Position* pos);
-
-
-// increment position in json string
-char*       pos_next(Position *pos);
-
-JSONObject* json_object_init(JSONObject* parent);
-
-char fforward(Position* pos, char* search_lst, char* expected_lst, char* unwanted_lst, char* ignore_lst, char* buf);
 struct JSONObject* json_get_path(struct JSONObject *rn, char *buf);
+struct JSONObject *json_set_path(struct JSONObject *rn, char *buf, struct JSONObject *child);
 
 #endif

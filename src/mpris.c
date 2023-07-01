@@ -309,7 +309,6 @@ void mpris_player_toggle(char *namespace)
 
 void mpris_player_set_position(char *namespace, char *track_id, uint64_t pos)
 {
-    printf("doing pos change\n");
     //"/org/mpris/MediaPlayer2/TrackList/NoTrack"
     mprisMediaPlayer2Player *proxy;
 	GError *error;
