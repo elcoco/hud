@@ -8,6 +8,7 @@
 #include "search_gui.h"
 #include "dashboard_gui.h"
 #include "mpris_gui.h"
+#include "dock_gui.h"
 
 #include "sock.h"
 #include "state.h"
@@ -155,6 +156,7 @@ static void app_activate_cb(GtkApplication *app)
     GtkBuilder *builder = gtk_builder_new_from_resource("/resources/ui/gui.ui");
     GObject *win = gtk_builder_get_object(builder, "main_win");
     GObject *w_stack = gtk_builder_get_object(builder, "main_stack");
+    GObject *main_box = gtk_builder_get_object(builder, "main_box");
 
     gtk_window_set_application(GTK_WINDOW(win), app);
 
@@ -174,6 +176,7 @@ static void app_activate_cb(GtkApplication *app)
 
 
     m = module_init(NULL, "apps",          apps_gui_init, NULL);
+    m = module_init(m,    "dock",          dock_gui_init, NULL);
     m = module_init(m,    "notifications", notifications_gui_init, NULL);
     m = module_init(m,    "search",        search_gui_init, NULL);
     m = module_init(m,    "mpris",         mpris_gui_init, NULL);
@@ -184,11 +187,17 @@ static void app_activate_cb(GtkApplication *app)
     while (tmp != NULL) {
         module_activate(tmp);
 
-        GtkStackPage *page = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(tmp->widget));
-        gtk_stack_page_set_title(page, tmp->name);
-        gtk_stack_page_set_name(page, tmp->name);
+        if (strcmp(tmp->name, "dock") == 0) {
+            gtk_box_append(GTK_BOX(main_box), GTK_WIDGET(tmp->widget));
+        }
+        else {
+            GtkStackPage *page = gtk_stack_add_child(GTK_STACK(w_stack), GTK_WIDGET(tmp->widget));
+            gtk_stack_page_set_title(page, tmp->name);
+            gtk_stack_page_set_name(page, tmp->name);
+        }
         tmp = tmp->next;
     }
+
     
     // lock all modules except for visible one (lock threads/running processes)
     on_stack_moved_focus_cb(GTK_WIDGET(w_stack), NULL, m->head);

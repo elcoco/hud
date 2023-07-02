@@ -14,7 +14,7 @@
 // custom assert macro with formatted message and ui cleanup
 #define clean_errno() (errno == 0 ? "None" : strerror(errno))
 #define log_error(M, ...) fprintf(stderr, "[ERROR] (%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
-#define assertf(A, M, ...) if(!(A)) {ui_cleanup() ; log_error(M, ##__VA_ARGS__); assert(A); }
+#define assertf(A, M, ...) if(!(A)) {log_error(M, ##__VA_ARGS__); assert(A); }
                         
 void str_to_lower(char *buf);
 int find_substr(const char *haystack, const char *needle);
