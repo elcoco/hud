@@ -1,6 +1,29 @@
 #include "apps_gui.h"
 #include "gdk/gdkkeysyms.h"
 
+static GListModel *app_model_new(void)
+{
+    /* fill model with some fancy data */
+
+    GListStore *store = g_list_store_new(G_TYPE_OBJECT);
+    GList *apps = g_app_info_get_all();
+
+    GList *app = apps;
+    while (app != NULL) {
+        GAppInfo *app_info = app->data;
+
+        // check if app is marked to show in menus
+        if (g_app_info_should_show(app_info)) {
+            AppItem *item = app_item_new(app_info);
+            g_list_store_append(store, item);
+        }
+
+        app = app->next;
+    }
+    g_list_free(apps);
+    return G_LIST_MODEL(store);
+}
+
 static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
 {
     /* Setup new rows */
@@ -55,6 +78,12 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
 
     gtk_image_set_from_gicon(GTK_IMAGE(image), g_app_info_get_icon(APP_ITEM(item)->app_info));
     gtk_label_set_text(GTK_LABEL(lb_name), g_app_info_get_name(APP_ITEM(item)->app_info));
+
+    // setup drag and drop source
+    GtkDragSource *drag_source = gtk_drag_source_new();
+    g_signal_connect(drag_source, "prepare", G_CALLBACK(on_drag_prepare), listitem);
+    g_signal_connect(drag_source, "drag-begin", G_CALLBACK(on_drag_begin), listitem);
+    gtk_widget_add_controller(GTK_WIDGET(image), GTK_EVENT_CONTROLLER(drag_source));
 }
 
 static void teardown_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)

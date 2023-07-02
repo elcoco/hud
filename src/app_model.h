@@ -12,6 +12,8 @@ struct _AppItem {
     GAppInfo *app_info;
 };
 
-GListModel *app_model_new(void);
+void on_drag_begin (GtkDragSource *source, GdkDrag *drag, gpointer user_data);
+GdkContentProvider *on_drag_prepare(GtkDragSource *source, double x, double y, gpointer user_data);
+AppItem *app_item_new(GAppInfo *app_info);
 
 #endif // !APP_MODEL_H

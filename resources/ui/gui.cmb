@@ -50,8 +50,7 @@
 	(1,140,"GtkStack","main_stack",139,None,None,None,None),
 	(1,141,"GtkStackSwitcher",None,139,None,None,None,1),
 	(1,142,"GtkBox","dock_box",None,None,None,None,None),
-	(1,144,"GtkScrolledWindow","dock_sw",142,None,None,None,None),
-	(1,145,"GtkListView","dock_lv",144,None,None,None,None)
+	(1,145,"GtkListView","dock_lv",142,None,None,None,1)
   </object>
   <object_property>
 	(1,38,"GtkOrientable","orientation","vertical",None,None,None,None,None),
@@ -151,12 +150,10 @@
 	(1,142,"GtkWidget","margin-bottom","30",None,None,None,None,None),
 	(1,142,"GtkWidget","margin-top","30",None,None,None,None,None),
 	(1,142,"GtkWidget","valign","center",None,None,None,None,None),
-	(1,144,"GtkScrolledWindow","has-frame","True",None,None,None,None,None),
-	(1,144,"GtkScrolledWindow","vscrollbar-policy","never",None,None,None,None,None),
-	(1,144,"GtkWidget","hexpand","True",None,None,None,None,None),
-	(1,144,"GtkWidget","width-request","1000",None,None,None,None,None),
 	(1,145,"GtkListBase","orientation","horizontal",None,None,None,None,None),
 	(1,145,"GtkListView","single-click-activate","True",None,None,None,None,None),
-	(1,145,"GtkOrientable","orientation","horizontal",None,None,None,None,None)
+	(1,145,"GtkOrientable","orientation","horizontal",None,None,None,None,None),
+	(1,145,"GtkWidget","halign","center",None,None,None,None,None),
+	(1,145,"GtkWidget","hexpand","True",None,None,None,None,None)
   </object_property>
 </cambalache-project>

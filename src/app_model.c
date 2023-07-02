@@ -13,7 +13,7 @@ static void app_item_class_init(AppItemClass *class)
 {
 }
 
-static AppItem *app_item_new(GAppInfo *app_info)
+AppItem *app_item_new(GAppInfo *app_info)
 {
     AppItem *item;
 
@@ -27,22 +27,22 @@ static AppItem *app_item_new(GAppInfo *app_info)
     return item;
 }
 
-GListModel *app_model_new(void)
+GdkContentProvider *on_drag_prepare(GtkDragSource *source, double x, double y, gpointer user_data)
 {
-    /* fill model with some fancy data */
+    //GtkListItem *item = gtk_list_item_get_item(user_data);
+    return gdk_content_provider_new_typed(G_TYPE_OBJECT, user_data);
+}
 
-    GListStore *store = g_list_store_new(G_TYPE_OBJECT);
-    GList *apps = g_app_info_get_all();
+void on_drag_begin(GtkDragSource *source, GdkDrag *drag, gpointer user_data)
+{
+    GtkListItem *listitem = GTK_LIST_ITEM(user_data);
+    AppItem *item = gtk_list_item_get_item(listitem);
+    GtkWidget *box = gtk_list_item_get_child(listitem);
+    GtkWidget *image = gtk_widget_get_first_child(box);
 
-    GList *app = apps;
-    while (app != NULL) {
-        GAppInfo *app_info = app->data;
-
-        AppItem *item = app_item_new(app_info);
-        g_list_store_append(store, item);
-
-        app = app->next;
-    }
-    g_list_free(apps);
-    return G_LIST_MODEL(store);
+    // Set the widget as the drag icon
+    GdkPaintable *paintable = gtk_widget_paintable_new(GTK_WIDGET(image));
+    gtk_drag_source_set_icon(source, paintable, 0, 0);
+    g_object_unref(paintable);
+    printf("dragging start: %s\n", g_app_info_get_name(item->app_info));
 }

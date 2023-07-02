@@ -361,7 +361,7 @@ static void json_object_add_child(struct JSONObject *parent, struct JSONObject *
     parent->length++;
     child->parent = parent;
 
-    // value is head node
+    // value is headl node
     if (parent->value == NULL) {
 
         // child is first node in linked list
@@ -585,12 +585,6 @@ static enum JSONStatus json_parse_object(struct JSONObject* jo, struct Position*
             json_obj_destroy(child);
             return PARSE_ERROR;
         }
-
-        if (strcmp(child->key, "GlossSee") == 0) {
-            printf("**************************************\n");
-            json_print(child->parent, 0);
-            printf("**************************************\n");
-        }
     }
     return STATUS_SUCCESS;
 }
@@ -668,7 +662,7 @@ struct JSONObject* json_load_file(char *path)
     FILE *fp = fopen(path, "r");
 
     if (fp == NULL) {
-        printf("File doesn't exist\n");
+        printf("JSON: File doesn't exist: %s\n", path);
         return NULL;
     }
 
@@ -698,8 +692,6 @@ int json_object_to_file(struct JSONObject *jo, char *path, int spaces)
 {
     char *buf = json_object_to_string(jo, spaces);
     FILE *fp = fopen(path, "wb");
-    printf("buf: %s\n", buf);
-    printf("buflen: %ld\n", strlen(buf));
 
     if (fp == NULL) {
         printf("Failed to open file for writing\n");
@@ -763,6 +755,11 @@ void json_obj_destroy(struct JSONObject* jo)
         else if (jo->next) {
             jo->next->prev = NULL;
         }
+        else {
+            // no more linked list
+            jo->parent->value = NULL;
+        }
+
         
         if (jo->parent->length > 0)
             jo->parent->length--;
@@ -796,7 +793,6 @@ void json_print(struct JSONObject* jo, uint32_t level)
             debug("%s%d:%s ", JCOL_ARR_INDEX, jo->index, JRESET);
         if (jo->key)
             debug("%s%s:%s ", JCOL_KEY, jo->key, JRESET);
-        //printf("key: %s, dtype = %d\n", jo->key, jo->dtype);
 
         switch (jo->dtype) {
 
@@ -885,6 +881,37 @@ struct JSONObject* json_get_path(struct JSONObject *rn, char *buf)
     return seg;
 }
 
+struct JSONObject *json_object_init_string(struct JSONObject *parent, char *key, char *value)
+{
+    struct JSONObject *jo = json_object_init(parent);
+    jo->dtype = JSON_STRING;
+    jo->is_string = 1;
+    jo->value = strdup(value);
+    if (key)
+        jo->key = strdup(key);
+    return jo;
+}
+
+struct JSONObject *json_object_init_object(struct JSONObject *parent, char *key)
+{
+    struct JSONObject *jo = json_object_init(parent);
+    jo->dtype = JSON_OBJECT;
+    jo->is_object = 1;
+    if (key)
+        jo->key = strdup(key);
+    return jo;
+}
+
+struct JSONObject *json_object_init_array(struct JSONObject *parent, char *key)
+{
+    struct JSONObject *jo = json_object_init(parent);
+    jo->dtype = JSON_ARRAY;
+    jo->is_array = 1;
+    if (key)
+        jo->key = strdup(key);
+    return jo;
+}
+
 struct JSONObject *json_set_path(struct JSONObject *rn, char *buf, struct JSONObject *child)
 {
     /* Set child as a child in object or array at end of path */
@@ -906,6 +933,7 @@ struct JSONObject *json_set_path(struct JSONObject *rn, char *buf, struct JSONOb
 
         struct JSONObject *tmp = json_get_path(seg, token);
         if (tmp != NULL) {
+            printf("found path: %s\n", token);
             seg = tmp;
             token = strtok_r(NULL, PATH_DELIM, &lasts);
             continue;
@@ -915,40 +943,24 @@ struct JSONObject *json_set_path(struct JSONObject *rn, char *buf, struct JSONOb
         if (json_atoi_err(token) >= 0) {
 
             if (seg != NULL && seg->is_array) {
-                // add new node to array
-                tmp = json_object_init(seg);
-                tmp->dtype = JSON_OBJECT;
-                tmp->is_object = true;
-                seg = tmp;
+                seg = json_object_init_object(seg, NULL);
             }
 
             else if (seg != NULL && seg->is_object && seg->length == 0) {
-
                 // turn empty parent object into an array
                 seg->dtype = JSON_ARRAY;
                 seg->is_array = 1;
-
-                // add new node to array
-                tmp = json_object_init(seg);
-                tmp->dtype = JSON_OBJECT;
-                tmp->is_object = true;
-                seg = tmp;
+                seg = json_object_init_object(seg, NULL);
             }
             else {
                 printf("ERROR: parent is not an aray\n");
                 return NULL;
             }
-
         }
         else {
-            // Create new object
-            tmp = json_object_init(seg);
-            tmp->dtype = JSON_OBJECT;
-            tmp->is_object = true;
-            tmp->key = strdup(token);
-            seg = tmp;
+            seg = json_object_init_object(seg, NULL);
+            seg->key = strdup(token);
         }
-
         token = strtok_r(NULL, PATH_DELIM, &lasts);
     }
 

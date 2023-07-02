@@ -1,0 +1,7 @@
+{
+    "core": {
+        "sub1": {
+            "superkey": "superval"
+        }
+    }
+}

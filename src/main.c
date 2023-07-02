@@ -13,19 +13,11 @@
 #include "sock.h"
 #include "state.h"
 #include "module.h"
+#include "config.h"
 //#include "pulse.h"
 
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
-
-
-#define RIPGREP_BIN_PATH "/usr/bin/rg"
-#define RIPGREP_ARGS     "--json"
-//#define RIPGREP_ARGS     "-l --color never"
-#define RIPGREP_PWD      "~"
-#define RIPGREP_SEARCH   "next"
-
-#define MAXBUF 1024 * 10
 
 // listener thread that handles window visibillity
 pthread_t thread_id;
@@ -265,8 +257,22 @@ static void init_state(struct State *s)
     strcpy(s->focus_page, "apps");
 }
 
+static void config_write_defaults(struct Config *c)
+{
+    config_set_str(c, "core/sub1", "superkey", "superval");
+}
+
 int main(int argc, char **argv)
 {
+    struct Config *c = config_init("diskoboi.json");
+    if (config_file_exists(c) < CONFIG_SUCCESS) {
+        printf("Writing config defaults to: %s\n", c->path);
+        config_file_create(c);
+        config_write_defaults(c);
+    }
+
+
+
     init_state(&state);
     if (parse_args(&state, argc, argv) < 0)
         return 1;

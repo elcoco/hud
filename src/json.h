@@ -112,6 +112,10 @@ char* json_get_string(struct JSONObject* jo);
 double json_get_number(struct JSONObject* jo);
 bool json_get_bool(struct JSONObject* jo);
 
+struct JSONObject *json_object_init_array(struct JSONObject *parent, char *key);
+struct JSONObject *json_object_init_object(struct JSONObject *parent, char *key);
+struct JSONObject *json_object_init_string(struct JSONObject *parent, char *key, char *value);
+
 struct JSONObject *json_get_path(struct JSONObject *rn, char *buf);
 struct JSONObject *json_set_path(struct JSONObject *rn, char *buf, struct JSONObject *child);
 
