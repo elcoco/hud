@@ -270,10 +270,29 @@ static void config_write_defaults(struct Config *c)
 
 int main(int argc, char **argv)
 {
-    struct Config *c = config_init("diskoboi.json");
+    char path[256] = "";
+    char *dir;
+    char filename[32] = "";
+
+    if ((dir = getenv("XDG_CONFIG_HOME")) == NULL) {
+        if ((dir = getenv("HOME")) == NULL) {
+            printf("$XDG_CONFIG_HOME and $HOME not set\n");
+            return -1;
+        }
+        else {
+            strncpy(filename, ".hud.json", 32);
+        }
+    }
+    else {
+        strncpy(filename, "hud.json", 32);
+    }
+
+    sprintf(path, "%s/%s", dir, filename);
+    struct Config *c = config_init(path);
     if (config_file_exists(c) < CONFIG_SUCCESS) {
         printf("Writing config defaults to: %s\n", c->path);
-        config_file_create(c);
+        if (config_file_create(c) < CONFIG_SUCCESS)
+            return 0;
         config_write_defaults(c);
     }
 
