@@ -38,7 +38,6 @@
 #define JSON_ARR_INDEX_APPEND -2
 #define JSON_ARR_INDEX_ERROR  -3
 
-
 /*
  * a:/b:/[0]/c/b:str
  * fmt = type:key:value
@@ -49,10 +48,8 @@
  *
  */
 
-#define MAX_PATH_LEN 512
-
 enum JSONDtype {
-    JSON_STRING = 0,
+    JSON_STRING,
     JSON_NUMBER,
     JSON_OBJECT,
     JSON_BOOL,
@@ -68,16 +65,6 @@ enum JSONStatus {
     STATUS_SUCCESS = 0,
     END_OF_ARRAY   = 1,
     END_OF_OBJECT  = 2
-};
-
-enum JSONParseResult {
-    JSON_PR_ERROR = -1,
-    JSON_PR_OBJ_KEY,
-    JSON_PR_EMPTY_OBJ,
-    JSON_PR_ARR_INDEX_REPLACE,
-    JSON_PR_ARR_INDEX_LAST,
-    JSON_PR_ARR_INDEX_APPEND,
-    JSON_PR_UNKNOWN,
 };
 
 struct JSONObject {
@@ -128,51 +115,10 @@ struct Position {
     uint32_t cols;
 };
 
-/* Use this as return value when parsing string path for json_get_path_rec */
-struct TokenResult {
-    // hold path segment
-    char token[MAX_PATH_LEN];
-
-    // holds rest of string for later parsing
-    char rest[MAX_PATH_LEN];
-
-    enum JSONParseResult parsed;
-
-    // if array token found, put index here
-    int index;
-
-    // is 1 when token is last element in path
-    int is_last;
-};
-
-struct PathSeg {
-    enum JSONDtype dtype;
-    char *key;
-    int index;
-};
-
-#define JSON_DEBUG 0
-#define JSON_INFO 1
-#define JSON_ERROR 1
-
-#define DEBUG(M, ...) if(JSON_DEBUG){fprintf(stdout, "[DEBUG] " M, ##__VA_ARGS__);}
-#define INFO(M, ...) if(JSON_INFO){fprintf(stdout, M, ##__VA_ARGS__);}
-#define ERROR(M, ...) if(JSON_ERROR){fprintf(stderr, "[ERROR] (%s:%d) " M, __FILE__, __LINE__, ##__VA_ARGS__);}
-
-#define RET_NULL(M, ...) ({ERROR(M, ##__VA_ARGS__); return NULL;})
-#define ASSERTF(A, M, ...) if(!(A)) {ERROR(M, ##__VA_ARGS__); assert(A); }
-
-
-#define IS_ARRAY(A) (A != NULL && A->is_array)
-#define IS_OBJECT(A) (A != NULL && A->is_object)
-#define IS_ARR_OP(A) (A.parsed >= JSON_PR_ARR_INDEX_REPLACE && A.parsed <= JSON_PR_ARR_INDEX_APPEND)
-#define IS_NOT_CONTAINER(A) (!A->is_object && !A->is_array)
-
-
 struct JSONObject* json_load(char* buf);
 struct JSONObject* json_load_file(char *path);
 void json_print(struct JSONObject* jo, uint32_t level);
-void json_object_destroy(struct JSONObject* jo);
+void json_obj_destroy(struct JSONObject* jo);
 char* json_object_to_string(struct JSONObject *jo, int spaces);
 int json_object_to_file(struct JSONObject *jo, char *path, int spaces);
 
@@ -188,6 +134,6 @@ struct JSONObject *json_object_init_object(struct JSONObject *parent, const char
 struct JSONObject *json_object_init_string(struct JSONObject *parent, const char *key, const char *value);
 
 struct JSONObject *json_get_path(struct JSONObject *rn, char *buf);
-struct JSONObject *json_set_path(struct JSONObject *jo_cur, char *buf_path, struct JSONObject *child);
+struct JSONObject *json_set_path(struct JSONObject *rn, const char *buf, struct JSONObject *child);
 
 #endif

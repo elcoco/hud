@@ -19,7 +19,11 @@ enum ConfigReturn {
 struct Config* config_init(char *path);
 void config_destroy(struct Config *c);
 enum ConfigReturn config_file_exists(struct Config *c);
-enum ConfigReturn config_set_str(struct Config *c, char *path, char *key, char *value);
+enum ConfigReturn config_set_str(struct Config *c, const char *path, const char *key, const char *value);
 enum ConfigReturn config_file_create(struct Config *c);
+
+enum ConfigReturn config_get_str(struct Config *c, char *path, char **buf);
+enum ConfigReturn config_get_int(struct Config *c, char *path, int *value);
+enum ConfigReturn config_get_child(struct Config *c, char *path, struct JSONObject **jo);
 
 #endif // !CONFIG_H

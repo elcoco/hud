@@ -1,19 +1,57 @@
 #include "dock_gui.h"
 #include "app_model.h"
+#include "config.h"
+#include "json.h"
 
-static GListModel *app_model_new(void)
+static GListModel *app_model_new(struct Config* c)
 {
     // TODO read from config file
     GListStore *store = g_list_store_new(G_TYPE_OBJECT);
+    GList *app;
 
-    GList *app = g_app_info_get_all();
+    app = g_app_info_get_all();
     while (app != NULL) {
-        if (strcmp(g_app_info_get_executable(app->data), "xfce4-about") == 0) {
+        if (strcmp(g_app_info_get_executable(app->data), "alacritty") == 0) {
             AppItem *item = app_item_new(app->data);
             g_list_store_append(store, item);
             break;
         }
         app = app->next;
+    }
+
+    struct JSONObject *jo;
+    if (config_get_child(c, "modules/dock/apps", &jo) != CONFIG_SUCCESS) {
+        printf("Failed to get dock config\n");
+        return G_LIST_MODEL(store);
+    }
+
+    struct JSONObject *tmp = jo->value;
+    while (tmp != NULL) {
+        app = g_app_info_get_all();
+
+        while (app != NULL) {
+            struct JSONObject *obj_name = json_get_path(tmp, "name");
+            if (!obj_name) {
+                app = app->next;
+                continue;
+            }
+            const char *name = json_get_string(obj_name);
+            const char *app_name = g_app_info_get_name(app->data);
+
+            if (name == NULL || app_name == NULL) {
+                app = app->next;
+                continue;
+            }
+
+            if (strcmp(app_name, name) == 0) {
+                printf("from config: %s\n", name);
+                AppItem *item = app_item_new(app->data);
+                g_list_store_append(store, item);
+                break;
+            }
+            app = app->next;
+        }
+        tmp = tmp->next;
     }
 
     return G_LIST_MODEL(store);
@@ -83,22 +121,37 @@ static void teardown_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, g
 }
 
 
-static gboolean on_drop (GtkDropTarget *target, const GValue *value, double x, double y, gpointer user_data)
+static gboolean on_drop (GtkDropTarget *target, const GValue *value, double x, double y, gpointer args)
 {
     GtkListItem *listitem = GTK_LIST_ITEM(g_value_get_object(value));
     AppItem *item = gtk_list_item_get_item(listitem);
     printf("dragging end: %s\n", g_app_info_get_name(item->app_info));
 
+    GListStore  *model = g_list_nth(args, 0)->data;
+    struct Config *c   = g_list_nth(args, 1)->data;
+
     // todo write to config file
 
-    g_list_store_append(G_LIST_STORE(user_data), item);
+    config_set_str(c, "modules/dock/apps/[?]", "type", "appinfo");
+    config_set_str(c, "modules/dock/apps/[-1]", "name", g_app_info_get_name(item->app_info));
+    g_list_store_append(G_LIST_STORE(model), item);
     return TRUE;
+}
+
+static void list_view_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
+{
+    GListModel *model = G_LIST_MODEL(user_data);
+    AppItem *item = g_list_model_get_item(model, pos);
+    GAppInfo *app_info = item->app_info;
+
+    // something something GError
+    g_app_info_launch(app_info, NULL, NULL, NULL);
 }
 
 GObject* dock_gui_init(struct Module *m)
 {
     // create our custom model
-    GListModel *app_model = app_model_new();
+    GListModel *app_model = app_model_new(m->config);
 
     GtkBuilder *builder = gtk_builder_new_from_resource(DOCK_UI_PATH);
 
@@ -119,8 +172,13 @@ GObject* dock_gui_init(struct Module *m)
     gtk_list_view_set_model(GTK_LIST_VIEW(w_list_view), GTK_SELECTION_MODEL(no_sel));
     gtk_list_view_set_factory(GTK_LIST_VIEW(w_list_view), GTK_LIST_ITEM_FACTORY(factory));
 
+    g_signal_connect(G_OBJECT(w_list_view), "activate", G_CALLBACK(list_view_run_app_cb), no_sel);
+
+
     GtkDropTarget *target = gtk_drop_target_new(G_TYPE_OBJECT, GDK_ACTION_COPY);
-    g_signal_connect(target, "drop", G_CALLBACK(on_drop), app_model);
+    GList *args = g_list_append(NULL, app_model);
+    args = g_list_append(args, m->config);
+    g_signal_connect(target, "drop", G_CALLBACK(on_drop), args);
     gtk_widget_add_controller(GTK_WIDGET(w_list_view), GTK_EVENT_CONTROLLER(target));
 
 

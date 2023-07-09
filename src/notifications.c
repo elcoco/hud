@@ -106,7 +106,7 @@ struct NotifyItem* notify_req(int amount)
         return NULL;
     }
 
-    struct JSONObject *msgs = json_get_path(rn, "data/0");
+    struct JSONObject *msgs = json_get_path(rn, "data/[0]");
 
     assert(msgs != NULL);
 
@@ -124,14 +124,31 @@ struct NotifyItem* notify_req(int amount)
         struct JSONObject *nbody = json_get_path(msg, "body/data");
         struct JSONObject *nmsg  = json_get_path(msg, "message/data");
         struct JSONObject *nsum  = json_get_path(msg, "summary/data");
-        struct JSONObject *napp  = json_get_path(msg, "app/data");
+        struct JSONObject *napp  = json_get_path(msg, "appname/data");
         struct JSONObject *nts   = json_get_path(msg, "timestamp/data");
 
         
-        ni_tmp->body    = strdup(nbody->value);
-        ni_tmp->msg     = strdup(nmsg->value);
-        ni_tmp->summary = strdup(nsum->value);
-        ni_tmp->app     = strdup(napp->value);
+        if (nbody)
+            ni_tmp->body    = strdup(nbody->value);
+        else
+            ni_tmp->body     = strdup("");
+        
+        if (nmsg)
+            ni_tmp->msg     = strdup(nmsg->value);
+        else
+            ni_tmp->msg     = strdup("");
+        
+        if (nsum)
+            ni_tmp->summary = strdup(nsum->value);
+        else
+            ni_tmp->summary     = strdup("");
+        
+        if (napp)
+            ni_tmp->app     = strdup(napp->value);
+        else
+            ni_tmp->app     = strdup("");
+
+        
 
         // dunst timestamp is microseconds (?) since boot time
         ni_tmp->ts = time(NULL) - (get_uptime() - (time_t)json_get_number(nts)/1000000);
@@ -139,6 +156,6 @@ struct NotifyItem* notify_req(int amount)
         msg = msg->next;
     }
 
-    json_obj_destroy(rn);
+    json_object_destroy(rn);
     return ni_head;
 }

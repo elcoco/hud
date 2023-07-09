@@ -5,7 +5,7 @@
 static struct Module* module_get_head(struct Module *m);
 
 
-struct Module* module_init(struct Module *m_prev, const char *name, GObject*(*init_cb)(struct Module*), void* args)
+struct Module* module_init(struct Module *m_prev, const char *name, struct Config *c, GObject*(*init_cb)(struct Module*), void* args)
 {
     struct Module *m = malloc(sizeof(struct Module));
     m->name = strdup(name);
@@ -13,6 +13,8 @@ struct Module* module_init(struct Module *m_prev, const char *name, GObject*(*in
     m->lock = 0;
     m->next = NULL;
     m->prev = NULL;
+
+    m->config = c;
 
     m->init_cb = init_cb;
     m->args = args;

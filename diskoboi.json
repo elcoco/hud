@@ -1,7 +1,28 @@
 {
-    "core": {
-        "sub1": {
-            "superkey": "superval"
+    "modules": {
+        "dock": {
+            "apps": [
+                {
+                    "type": "appinfo",
+                    "name": "Flameshot"
+                },
+                {
+                    "type": "appinfo",
+                    "name": "Firefox Web Browser"
+                },
+                {
+                    "type": "appinfo",
+                    "name": "Lollypop"
+                },
+                {
+                    "type": "appinfo",
+                    "name": "KiCad PCB Calculator"
+                },
+                {
+                    "type": "appinfo",
+                    "name": "Signal"
+                }
+            ]
         }
     }
 }

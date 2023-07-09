@@ -93,7 +93,7 @@ int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop)
         struct JSONObject *ntype = json_get_path(rn, "type");
 
         if (ntype == NULL || strcmp(ntype->value, "match") != 0) {
-            json_obj_destroy(rn);
+            json_object_destroy(rn);
             continue;
         }
 
@@ -102,7 +102,7 @@ int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop)
         struct JSONObject *lineno = json_get_path(rn, "data/line_number");
 
         if (npath == NULL || ntext == NULL || lineno == NULL) {
-            json_obj_destroy(rn);
+            json_object_destroy(rn);
             continue;
         }
 
@@ -120,7 +120,7 @@ int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop)
 
         nfound++;
 
-        json_obj_destroy(rn);
+        json_object_destroy(rn);
     }
     pclose(pipe);
     return nfound;

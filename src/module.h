@@ -8,9 +8,13 @@
 
 #include <gtk/gtk.h>
 
+#include "config.h"
+
 struct Module {
     GObject *widget;
     char *name;
+
+    struct Config *config;
 
     struct Module *prev;
     struct Module *next;
@@ -22,7 +26,7 @@ struct Module {
     _Atomic int lock;
 };
 
-struct Module* module_init(struct Module *m_prev, const char *name, GObject*(*init_cb)(struct Module*), void* args);
+struct Module* module_init(struct Module *m_prev, const char *name, struct Config *c, GObject*(*init_cb)(struct Module*), void* args);
 void module_destroy(struct Module *m);
 void module_destroy_all(struct Module *mod);
 

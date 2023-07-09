@@ -142,7 +142,7 @@ static gboolean on_stack_moved_focus_cb(GtkWidget *widget, GObject *pspec, gpoin
     return 1;
 }
 
-static void app_activate_cb(GtkApplication *app)
+static void app_activate_cb(GtkApplication *app, struct Config *c)
 {
     //GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
     GtkBuilder *builder = gtk_builder_new_from_resource("/resources/ui/gui.ui");
@@ -167,11 +167,11 @@ static void app_activate_cb(GtkApplication *app)
     }
 
 
-    m = module_init(NULL, "apps",          apps_gui_init, NULL);
-    m = module_init(m,    "dock",          dock_gui_init, NULL);
-    m = module_init(m,    "notifications", notifications_gui_init, NULL);
-    m = module_init(m,    "search",        search_gui_init, NULL);
-    m = module_init(m,    "mpris",         mpris_gui_init, NULL);
+    m = module_init(NULL, "apps",          c, apps_gui_init, NULL);
+    m = module_init(m,    "dock",          c, dock_gui_init, NULL);
+    m = module_init(m,    "notifications", c, notifications_gui_init, NULL);
+    m = module_init(m,    "search",        c, search_gui_init, NULL);
+    m = module_init(m,    "mpris",         c, mpris_gui_init, NULL);
 //    m = module_init(m,    "dashboard",     dashboard_gui_init, NULL);
 
     struct Module *tmp = m->head;
@@ -259,7 +259,13 @@ static void init_state(struct State *s)
 
 static void config_write_defaults(struct Config *c)
 {
-    config_set_str(c, "core/sub1", "superkey", "superval");
+    //config_set_str(c, "core/dock/apps/0", NULL, "lkjlkj");
+    //config_set_str(c, "bever/disko", "blub", "lkjl");
+    //config_set_str(c, "bever/disko/banaan/[1]", NULL, "lkjl");
+    //config_set_str(c, "bever/disko/banaan/[?]", NULL, "bla");
+    //config_set_str(c, "modules/dock/apps", NULL, "bla2");
+    //
+
 }
 
 int main(int argc, char **argv)
@@ -278,7 +284,7 @@ int main(int argc, char **argv)
         return 1;
 
     GtkApplication *app = gtk_application_new("com.eco.hud", G_APPLICATION_DEFAULT_FLAGS);
-    g_signal_connect(app, "activate", G_CALLBACK(app_activate_cb), NULL);
+    g_signal_connect(app, "activate", G_CALLBACK(app_activate_cb), c);
 
     int stat = g_application_run(G_APPLICATION(app), 0, NULL);
     //int stat = g_application_run(G_APPLICATION(app), argc, argv);
