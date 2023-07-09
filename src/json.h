@@ -186,6 +186,7 @@ bool json_get_bool(struct JSONObject* jo);
 struct JSONObject *json_object_init_array(struct JSONObject *parent, const char *key);
 struct JSONObject *json_object_init_object(struct JSONObject *parent, const char *key);
 struct JSONObject *json_object_init_string(struct JSONObject *parent, const char *key, const char *value);
+struct JSONObject *json_object_init_number(struct JSONObject *parent, const char *key, double value);
 
 struct JSONObject *json_get_path(struct JSONObject *rn, char *buf);
 struct JSONObject *json_set_path(struct JSONObject *jo_cur, char *buf_path, struct JSONObject *child);

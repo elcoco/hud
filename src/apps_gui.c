@@ -38,8 +38,8 @@ static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoi
     //gtk_image_set_icon_size(GTK_IMAGE(image), GTK_ICON_SIZE_LARGE);
     gtk_image_set_pixel_size(GTK_IMAGE(image), 100);
 
-    //gtk_widget_set_margin_start(image, 0);
-    //gtk_widget_set_margin_end(image, 0);
+    gtk_widget_set_margin_start(image, 30);
+    gtk_widget_set_margin_end(image, 30);
 
     gtk_box_append(GTK_BOX(vbox), image);
 
@@ -150,14 +150,18 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
     gtk_filter_changed(filter, GTK_FILTER_CHANGE_DIFFERENT);
 }
 
-static void grid_view_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
+static void grid_view_run_app_cb(GtkGridView *self, int pos, gpointer args)
 {
-    GListModel *model = G_LIST_MODEL(user_data);
+    GListModel *model = g_list_nth(args, 0)->data;
+    GObject *win      = g_list_nth(args, 1)->data;
+
+    //GListModel *model = G_LIST_MODEL(user_data);
     AppItem *item = g_list_model_get_item(model, pos);
     GAppInfo *app_info = item->app_info;
 
     // something something GError
     g_app_info_launch(app_info, NULL, NULL, NULL);
+    g_signal_emit_by_name(win, "module-exit");
 }
 
 static void se_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
@@ -231,8 +235,6 @@ GObject* apps_gui_init(struct Module *m)
 
 
     //GtkNoSelection *no_sel;
-    //GList *args = g_list_alloc();
-    //args = g_list_append(args, w_se_apps);
     //args = g_list_append(args, no_sel);
 
     // custom filter model that filters through all fields
@@ -245,9 +247,12 @@ GObject* apps_gui_init(struct Module *m)
     GtkNoSelection *no_sel = gtk_no_selection_new(G_LIST_MODEL(sort_model));
 
 
+    GList *args = g_list_append(NULL, no_sel);
+    args = g_list_append(args, m->main_win);
+
     // connect search input via callback to update model on change
     g_signal_connect(G_OBJECT(w_se_apps), "search-changed", G_CALLBACK(search_entry_changed_cb), filter);
-    g_signal_connect(G_OBJECT(w_grid_view), "activate", G_CALLBACK(grid_view_run_app_cb), no_sel);
+    g_signal_connect(G_OBJECT(w_grid_view), "activate", G_CALLBACK(grid_view_run_app_cb), args);
     g_signal_connect(G_OBJECT(w_se_apps), "activate", G_CALLBACK(se_run_app_cb), no_sel);
 
 

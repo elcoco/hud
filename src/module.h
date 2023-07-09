@@ -24,6 +24,7 @@ struct Module {
     void *args;
 
     _Atomic int lock;
+    GObject *main_win;
 };
 
 struct Module* module_init(struct Module *m_prev, const char *name, struct Config *c, GObject*(*init_cb)(struct Module*), void* args);
@@ -37,5 +38,6 @@ void module_debug(struct Module *m);
 void module_lock(struct Module *m);
 void module_unlock(struct Module *m);
 int  module_is_locked(struct Module *m);
+void module_set_main_win(struct Module *m, GObject *win);
 
 #endif // !MODULE_H

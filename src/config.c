@@ -57,6 +57,22 @@ enum ConfigReturn config_set_str(struct Config *c, const char *path, const char 
     return CONFIG_SUCCESS;
 }
 
+enum ConfigReturn config_set_number(struct Config *c, const char *path, const char *key, int value)
+{
+    struct JSONObject *jo = json_load_file(c->path);
+
+    if (jo == NULL)
+        return CONFIG_PARSE_ERROR;
+
+    struct JSONObject *child = json_object_init_number(NULL, key, value);
+    
+    json_set_path(jo, path, child);
+    json_object_to_file(jo, c->path, 4);
+    json_print(jo, 0);
+
+    return CONFIG_SUCCESS;
+}
+
 enum ConfigReturn config_get_int(struct Config *c, char *path, int *value)
 {
     struct JSONObject *jo = json_load_file(c->path);

@@ -138,14 +138,18 @@ static gboolean on_drop (GtkDropTarget *target, const GValue *value, double x, d
     return TRUE;
 }
 
-static void list_view_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
+static void list_view_run_app_cb(GtkGridView *self, int pos, gpointer args)
 {
-    GListModel *model = G_LIST_MODEL(user_data);
+    GListModel *model = g_list_nth(args, 0)->data;
+    GObject *win      = g_list_nth(args, 1)->data;
+
     AppItem *item = g_list_model_get_item(model, pos);
     GAppInfo *app_info = item->app_info;
 
     // something something GError
     g_app_info_launch(app_info, NULL, NULL, NULL);
+
+    g_signal_emit_by_name(win, "module-exit");
 }
 
 GObject* dock_gui_init(struct Module *m)
@@ -172,7 +176,10 @@ GObject* dock_gui_init(struct Module *m)
     gtk_list_view_set_model(GTK_LIST_VIEW(w_list_view), GTK_SELECTION_MODEL(no_sel));
     gtk_list_view_set_factory(GTK_LIST_VIEW(w_list_view), GTK_LIST_ITEM_FACTORY(factory));
 
-    g_signal_connect(G_OBJECT(w_list_view), "activate", G_CALLBACK(list_view_run_app_cb), no_sel);
+
+    GList *activate_args = g_list_append(NULL, no_sel);
+    activate_args = g_list_append(activate_args, m->main_win);
+    g_signal_connect(G_OBJECT(w_list_view), "activate", G_CALLBACK(list_view_run_app_cb), activate_args);
 
 
     GtkDropTarget *target = gtk_drop_target_new(G_TYPE_OBJECT, GDK_ACTION_COPY);

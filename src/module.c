@@ -31,6 +31,11 @@ struct Module* module_init(struct Module *m_prev, const char *name, struct Confi
     return m;
 }
 
+void module_set_main_win(struct Module *m, GObject *win)
+{
+    m->main_win = win;
+}
+
 static struct Module* module_get_head(struct Module *m)
 {
     while (m->prev != NULL)

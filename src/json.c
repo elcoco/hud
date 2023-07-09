@@ -941,6 +941,19 @@ struct JSONObject *json_object_init_string(struct JSONObject *parent, const char
     return jo;
 }
 
+struct JSONObject *json_object_init_number(struct JSONObject *parent, const char *key, double value)
+{
+    struct JSONObject *jo = json_object_init(parent);
+    jo->dtype = JSON_NUMBER;
+    jo->is_number = 1;
+    double *alloc_value = malloc(sizeof(double));
+    *alloc_value = value;
+    jo->value = alloc_value;
+    if (key)
+        jo->key = strdup(key);
+    return jo;
+}
+
 struct JSONObject *json_object_init_object(struct JSONObject *parent, const char *key)
 {
     struct JSONObject *jo = json_object_init(parent);

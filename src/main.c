@@ -142,6 +142,13 @@ static gboolean on_stack_moved_focus_cb(GtkWidget *widget, GObject *pspec, gpoin
     return 1;
 }
 
+static gboolean on_mod_exit(GtkWidget *widget, GObject *pspec, gpointer data)
+{
+    printf("received exit!!!!!!\n");
+    g_application_quit(G_APPLICATION(data));
+    return 1;
+}
+
 static void app_activate_cb(GtkApplication *app, struct Config *c)
 {
     //GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
@@ -149,6 +156,19 @@ static void app_activate_cb(GtkApplication *app, struct Config *c)
     GObject *win = gtk_builder_get_object(builder, "main_win");
     GObject *w_stack = gtk_builder_get_object(builder, "main_stack");
     GObject *main_box = gtk_builder_get_object(builder, "main_box");
+
+    int fullscreen = 0;
+    if (config_get_int(c, "core/fullscreen", &fullscreen) == CONFIG_SUCCESS && fullscreen)
+        gtk_window_fullscreen(GTK_WINDOW(win));
+
+    g_signal_new("module-exit",
+             G_TYPE_OBJECT, G_SIGNAL_RUN_FIRST,
+             0, NULL, NULL,
+             g_cclosure_marshal_VOID__POINTER,
+             G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+    // signal is used by modules to signal application exit, for example when executing an app
+    g_signal_connect(G_OBJECT(win), "module-exit", G_CALLBACK(on_mod_exit), app);
 
     gtk_window_set_application(GTK_WINDOW(win), app);
 
@@ -177,6 +197,10 @@ static void app_activate_cb(GtkApplication *app, struct Config *c)
     struct Module *tmp = m->head;
 
     while (tmp != NULL) {
+        // move to initializer
+        tmp->main_win = win;
+        module_set_main_win(m, win);
+
         module_activate(tmp);
 
         if (strcmp(tmp->name, "dock") == 0) {
@@ -259,13 +283,7 @@ static void init_state(struct State *s)
 
 static void config_write_defaults(struct Config *c)
 {
-    //config_set_str(c, "core/dock/apps/0", NULL, "lkjlkj");
-    //config_set_str(c, "bever/disko", "blub", "lkjl");
-    //config_set_str(c, "bever/disko/banaan/[1]", NULL, "lkjl");
-    //config_set_str(c, "bever/disko/banaan/[?]", NULL, "bla");
-    //config_set_str(c, "modules/dock/apps", NULL, "bla2");
-    //
-
+    config_set_number(c, "core", "fullscreen", 1);
 }
 
 int main(int argc, char **argv)
