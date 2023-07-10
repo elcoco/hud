@@ -4,6 +4,11 @@
 #define log_error(M, ...) fprintf(stderr, "[ERROR] (%s:%d: errno: %s) " M "\n", __FILE__, __LINE__, clean_errno(), ##__VA_ARGS__)
 #define assertf(A, M, ...) if(!(A)) {log_error(M, ##__VA_ARGS__); assert(A); }
 
+#define DEBUG(M, ...) if(JSON_DEBUG){fprintf(stdout, "[DEBUG] " M, ##__VA_ARGS__);}
+#define INFO(M, ...) if(JSON_INFO){fprintf(stdout, M, ##__VA_ARGS__);}
+#define ERROR(M, ...) if(JSON_ERROR){fprintf(stderr, "[ERROR] (%s:%d) " M, __FILE__, __LINE__, ##__VA_ARGS__);}
+
+
 static enum JSONStatus json_parse(struct JSONObject* jo, struct Position* pos);
 static enum JSONStatus json_parse_object(struct JSONObject* jo, struct Position* pos);
 static enum JSONStatus json_parse_array(struct JSONObject* jo, struct Position* pos);
@@ -1117,8 +1122,8 @@ struct JSONObject* json_get_path(struct JSONObject *rn, char *buf)
     if (!(rn->is_object || rn->is_array))
         return NULL;
 
-    char path[MAX_PATH_LEN] = "";
-    strncpy(path, buf, MAX_PATH_LEN);
+    char path[JSON_MAX_PATH_LEN] = "";
+    strncpy(path, buf, JSON_MAX_PATH_LEN);
 
     struct JSONObject* seg = rn;
     char *lasts;
@@ -1180,7 +1185,7 @@ int json_object_replace_child_by_key(struct JSONObject *parent, struct JSONObjec
     return 0;
 }
 
-struct JSONObject *json_set_path(struct JSONObject *jo_cur, char *buf_path, struct JSONObject *child)
+struct JSONObject *json_set_path(struct JSONObject *jo_cur, const char *buf_path, struct JSONObject *child)
 {
     /*
      * path = test_arr/[3]/{}

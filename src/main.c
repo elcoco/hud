@@ -10,18 +10,25 @@
 #include "mpris_gui.h"
 #include "dock_gui.h"
 
-#include "sock.h"
+//#include "sock.h"
 #include "state.h"
 #include "module.h"
 #include "config.h"
+#include "utils.h"
 //#include "pulse.h"
 
 #include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 
+#define MAX_PATH_LEN 64
+
+
+// main maindow
+GObject *win = NULL;
+
 // listener thread that handles window visibillity
 pthread_t thread_id;
-struct ThreadArgs ta;
+//struct ThreadArgs ta;
 
 struct State state;
 
@@ -83,9 +90,19 @@ static gboolean on_focus_tab_next_cb(GtkWidget *widget, GVariant *args, gpointer
     return 1;
 }
 
-static int on_accept_cb(void* arg)
+static int set_win_visible(GtkWindow *win, struct State *s)
 {
-    gtk_widget_set_visible(GTK_WIDGET(arg), 1);
+    DEBUG("Set visible\n");
+    gtk_widget_set_visible(GTK_WIDGET(win), 1);
+    if (s->fullscreen)
+        gtk_window_fullscreen(GTK_WINDOW(win));
+    return 0;
+}
+
+static int set_win_invisible(GtkWindow *win)
+{
+    DEBUG("Set invisible\n");
+    gtk_widget_set_visible(GTK_WIDGET(win), 0);
     return 0;
 }
 
@@ -145,20 +162,28 @@ static gboolean on_stack_moved_focus_cb(GtkWidget *widget, GObject *pspec, gpoin
 static gboolean on_mod_exit(GtkWidget *widget, GObject *pspec, gpointer data)
 {
     printf("received exit!!!!!!\n");
-    g_application_quit(G_APPLICATION(data));
+    if (state.hide_on_close)
+        set_win_invisible(GTK_WINDOW(win));
+    else
+        g_application_quit(G_APPLICATION(data));
     return 1;
 }
 
 static void app_activate_cb(GtkApplication *app, struct Config *c)
 {
-    //GtkBuilder *builder = gtk_builder_new_from_file("src/gui/gui.ui");
+    // when seconds instance is started, GtkApplication emits activate signal wo
+    // we need to catch that here
+    if (win != NULL) {
+        set_win_visible(GTK_WINDOW(win), &state);
+        return;
+    }
+    
     GtkBuilder *builder = gtk_builder_new_from_resource("/resources/ui/gui.ui");
-    GObject *win = gtk_builder_get_object(builder, "main_win");
+    win = gtk_builder_get_object(builder, "main_win");
     GObject *w_stack = gtk_builder_get_object(builder, "main_stack");
     GObject *main_box = gtk_builder_get_object(builder, "main_box");
 
-    int fullscreen = 0;
-    if (config_get_int(c, "core/fullscreen", &fullscreen) == CONFIG_SUCCESS && fullscreen)
+    if (state.fullscreen)
         gtk_window_fullscreen(GTK_WINDOW(win));
 
     g_signal_new("module-exit",
@@ -172,20 +197,8 @@ static void app_activate_cb(GtkApplication *app, struct Config *c)
 
     gtk_window_set_application(GTK_WINDOW(win), app);
 
-    if (state.hide_on_close) {
+    if (state.hide_on_close)
         gtk_window_set_hide_on_close(GTK_WINDOW(win), TRUE);
-
-        // Thread listens on unix domain socket for connections
-        // If a connection is made it will show the window
-        // When window is closed GTK will hide it instead of closing
-        //ta = malloc(sizeof(struct ThreadArgs));
-        ta.cb = on_accept_cb;
-        ta.arg = (void*)win;
-        ta.stop = 0;
-        printf("Starting listener thread: 0X%lX\n", thread_id);
-        pthread_create(&thread_id, NULL, listen_for_conn, (void*)&ta);
-    }
-
 
     m = module_init(NULL, "apps",          c, apps_gui_init, NULL);
     m = module_init(m,    "dock",          c, dock_gui_init, NULL);
@@ -213,7 +226,6 @@ static void app_activate_cb(GtkApplication *app, struct Config *c)
         }
         tmp = tmp->next;
     }
-
     
     // lock all modules except for visible one (lock threads/running processes)
     on_stack_moved_focus_cb(GTK_WIDGET(w_stack), NULL, m->head);
@@ -222,9 +234,7 @@ static void app_activate_cb(GtkApplication *app, struct Config *c)
     module_debug(m);
 
     //gtk_stack_set_visible_child_name(GTK_STACK(w_stack), state.focus_page);
-    
     //GtkRecentManager *manager = gtk_recent_manager_get_default ();
-    
 
     setup_keys(GTK_WIDGET(w_stack));
 
@@ -247,10 +257,13 @@ static int parse_args(struct State *s, int argc, char **argv)
     int option;
     printf("Parsing args\n");
 
-    while((option = getopt(argc, argv, "f:HhD")) != -1) {
+    while((option = getopt(argc, argv, "f:HhDF")) != -1) {
         switch (option) {
             case 'f':
                 strcpy(s->focus_page, optarg);
+                break;
+            case 'F':
+                s->fullscreen = 1;
                 break;
             case 'H':
                 s->hide_on_close = 1;
@@ -277,6 +290,7 @@ static void init_state(struct State *s)
     /* Set defaults, can be overridden in parse_args() */
     s->hide_on_close = 0;
     s->do_debug = 1;
+    s->fullscreen = 0;
 
     strcpy(s->focus_page, "apps");
 }
@@ -288,9 +302,12 @@ static void config_write_defaults(struct Config *c)
 
 int main(int argc, char **argv)
 {
+
+
+    // TODO if socket already up, connect to running session
     char path[256] = "";
     char *dir;
-    char filename[32] = "";
+    char filename[MAX_PATH_LEN] = "";
 
     if ((dir = getenv("XDG_CONFIG_HOME")) == NULL) {
         if ((dir = getenv("HOME")) == NULL) {
@@ -298,11 +315,11 @@ int main(int argc, char **argv)
             return -1;
         }
         else {
-            strncpy(filename, ".hud.json", 32);
+            strncpy(filename, ".hud.json", MAX_PATH_LEN);
         }
     }
     else {
-        strncpy(filename, "hud.json", 32);
+        strncpy(filename, "hud.json", MAX_PATH_LEN);
     }
 
     sprintf(path, "%s/%s", dir, filename);
@@ -314,8 +331,6 @@ int main(int argc, char **argv)
         config_write_defaults(c);
     }
 
-
-
     init_state(&state);
     if (parse_args(&state, argc, argv) < 0)
         return 1;
@@ -324,12 +339,7 @@ int main(int argc, char **argv)
     g_signal_connect(app, "activate", G_CALLBACK(app_activate_cb), c);
 
     int stat = g_application_run(G_APPLICATION(app), 0, NULL);
-    //int stat = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);
 
-    if (state.hide_on_close == 1) {
-        ta.stop = 1;
-        pthread_join(thread_id, NULL);
-    }
     return stat;
 }

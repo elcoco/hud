@@ -38,6 +38,7 @@
 #define JSON_ARR_INDEX_APPEND -2
 #define JSON_ARR_INDEX_ERROR  -3
 
+#define JSON_MAX_PATH_LEN 512
 
 /*
  * a:/b:/[0]/c/b:str
@@ -49,7 +50,6 @@
  *
  */
 
-#define MAX_PATH_LEN 512
 
 enum JSONDtype {
     JSON_STRING = 0,
@@ -131,10 +131,10 @@ struct Position {
 /* Use this as return value when parsing string path for json_get_path_rec */
 struct TokenResult {
     // hold path segment
-    char token[MAX_PATH_LEN];
+    char token[JSON_MAX_PATH_LEN];
 
     // holds rest of string for later parsing
-    char rest[MAX_PATH_LEN];
+    char rest[JSON_MAX_PATH_LEN];
 
     enum JSONParseResult parsed;
 
@@ -154,10 +154,6 @@ struct PathSeg {
 #define JSON_DEBUG 0
 #define JSON_INFO 1
 #define JSON_ERROR 1
-
-#define DEBUG(M, ...) if(JSON_DEBUG){fprintf(stdout, "[DEBUG] " M, ##__VA_ARGS__);}
-#define INFO(M, ...) if(JSON_INFO){fprintf(stdout, M, ##__VA_ARGS__);}
-#define ERROR(M, ...) if(JSON_ERROR){fprintf(stderr, "[ERROR] (%s:%d) " M, __FILE__, __LINE__, ##__VA_ARGS__);}
 
 #define RET_NULL(M, ...) ({ERROR(M, ##__VA_ARGS__); return NULL;})
 #define ASSERTF(A, M, ...) if(!(A)) {ERROR(M, ##__VA_ARGS__); assert(A); }
@@ -189,6 +185,7 @@ struct JSONObject *json_object_init_string(struct JSONObject *parent, const char
 struct JSONObject *json_object_init_number(struct JSONObject *parent, const char *key, double value);
 
 struct JSONObject *json_get_path(struct JSONObject *rn, char *buf);
-struct JSONObject *json_set_path(struct JSONObject *jo_cur, char *buf_path, struct JSONObject *child);
+//struct JSONObject *json_set_path(struct JSONObject *jo_cur, char *buf_path, struct JSONObject *child);
+struct JSONObject *json_set_path(struct JSONObject *jo_cur, const char *buf_path, struct JSONObject *child);
 
 #endif

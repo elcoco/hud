@@ -4,6 +4,18 @@
 
 void* listen_for_conn(void* args)
 {
+
+    /*
+     *   usage
+         Thread listens on unix domain socket for connections
+         If a connection is made it will show the window
+         When window is closed GTK will hide it instead of closing
+        ta.cb = on_accept_set_win_visible;
+        ta.arg = (void*)win;
+        ta.stop = 0;
+        printf("Starting listener thread: 0X%lX\n", thread_id);
+        pthread_create(&thread_id, NULL, listen_for_conn, (void*)&ta);
+    */
     int sockfd;
     struct sockaddr_un name;
     struct ThreadArgs *ta = args;
