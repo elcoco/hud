@@ -181,3 +181,11 @@ void update_prop_int(GObject *item, const char *key, int value, int force)
     g_object_set_property(item, key, &gvalue);
 }
 
+void on_editable_escape_pressed(GtkGridView *self, gpointer main_win)
+{
+    /* Clear textfield or exit if text field is empty */
+    if (strlen(gtk_editable_get_text(GTK_EDITABLE(self))))
+        gtk_editable_delete_text(GTK_EDITABLE(self), 0, -1);
+    else 
+        g_signal_emit_by_name(G_OBJECT(main_win), "module-exit");
+}

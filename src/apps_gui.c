@@ -96,27 +96,6 @@ static void teardown_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, g
     g_object_unref(item);
 }
 
-static void str_to_lower(char *buf)
-{
-    for (int i=0 ; i<strlen(buf) ; i++)
-        buf[i] = tolower(buf[i]);
-}
-
-static int find_substr(const char *haystack, const char *needle)
-{
-    char *str = strdup(haystack);
-    char *substr = strdup(needle);
-    str_to_lower(str);
-    str_to_lower(substr);
-
-    int res = (strstr(str, substr)) ? 1 : 0;
-
-    free(str);
-    free(substr);
-
-    return res;
-}
-
 static gboolean custom_filter_cb(void* fitem, gpointer user_data)
 {
     AppItem *item = APP_ITEM(fitem);
@@ -254,6 +233,7 @@ GObject* apps_gui_init(struct Module *m)
     g_signal_connect(G_OBJECT(w_se_apps), "search-changed", G_CALLBACK(search_entry_changed_cb), filter);
     g_signal_connect(G_OBJECT(w_grid_view), "activate", G_CALLBACK(grid_view_run_app_cb), args);
     g_signal_connect(G_OBJECT(w_se_apps), "activate", G_CALLBACK(se_run_app_cb), no_sel);
+    g_signal_connect(G_OBJECT(w_se_apps), "stop-search", G_CALLBACK(on_editable_escape_pressed), m->main_win);
 
 
     // factory creates widgets to connect model to view

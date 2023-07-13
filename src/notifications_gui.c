@@ -126,17 +126,6 @@ static void search_entry_changed_cb(void* self, gpointer user_data)
     gtk_filter_changed(filter, GTK_FILTER_CHANGE_DIFFERENT);
 }
 
-//gboolean keypressHandeler(GtkWidget *widget, GdkEventKey *event, gpointer data){
-gboolean on_stop_search(GtkWidget *widget, gpointer data)
-{
-    printf("bevers!!!!!!\n");
-    //gtk_widget_event(GTK_WIDGET(widget), event);
-    return FALSE;
-
-}
-
-
-
 static void on_run_app_cb(GtkGridView *self, int pos, gpointer user_data)
 {
     GListModel *model = G_LIST_MODEL(user_data);
@@ -204,19 +193,9 @@ GObject* notifications_gui_init(struct Module *m)
     g_signal_connect(factory, "setup", G_CALLBACK(setup_cb), NULL);
     g_signal_connect(factory, "bind",  G_CALLBACK(bind_cb), NULL);
     g_signal_connect(factory, "teardown",  G_CALLBACK(teardown_cb), NULL);
+    g_signal_connect(G_OBJECT(w_search_entry), "stop-search", G_CALLBACK(on_editable_escape_pressed), m->main_win);
 
-    g_signal_connect(w_search_entry, "stop-search",  G_CALLBACK(on_stop_search), NULL);
     g_signal_connect(G_OBJECT(w_list_view), "activate", G_CALLBACK(on_run_app_cb), no_sel);
-
-    //g_signal_connect(GTK_WIDGET(w_vbox), "focus-in-event", G_CALLBACK(notification_on_get_focus_cb), m);
-    //g_signal_connect(GTK_WIDGET(w_vbox), "focus-in-event", G_CALLBACK(notification_on_lost_focus_cb), m);
-
-    // find signal id for type/signal
-    guint sig_id;
-    g_signal_parse_name("stop-search", GTK_TYPE_SEARCH_ENTRY, &sig_id, NULL, 0);
-
-    // find signal handler for instance with matching signal id
-    //gulong sig_handler = g_signal_handler_find(G_OBJECT(w_search_entry), G_SIGNAL_MATCH_ID, sig_id, 0, NULL, NULL, NULL);
 
     gtk_list_view_set_model(GTK_LIST_VIEW(w_list_view), GTK_SELECTION_MODEL(no_sel));
     gtk_list_view_set_factory(GTK_LIST_VIEW(w_list_view), GTK_LIST_ITEM_FACTORY(factory));

@@ -172,6 +172,11 @@ void json_object_destroy(struct JSONObject* jo);
 char* json_object_to_string(struct JSONObject *jo, int spaces);
 int json_object_to_file(struct JSONObject *jo, char *path, int spaces);
 
+void json_object_append_child(struct JSONObject *parent, struct JSONObject *child);
+struct JSONObject* json_get_child_by_index(struct JSONObject *parent, int index);
+struct JSONObject* json_object_insert_child(struct JSONObject *parent, struct JSONObject *child, int index);
+int json_count_children(struct JSONObject *parent);
+
 struct JSONObject* json_object_init(struct JSONObject* parent);
 
 // get value casted to the appropriate type

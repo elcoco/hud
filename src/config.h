@@ -2,6 +2,7 @@
 #define CONFIG_H
 
 #include "json.h"
+#include "utils.h"
 
 struct Config {
     char *path;
@@ -26,5 +27,7 @@ enum ConfigReturn config_file_create(struct Config *c);
 enum ConfigReturn config_get_str(struct Config *c, char *path, char **buf);
 enum ConfigReturn config_get_int(struct Config *c, char *path, int *value);
 enum ConfigReturn config_get_child(struct Config *c, char *path, struct JSONObject **jo);
+
+enum ConfigReturn config_array_insert(struct Config *c, char *path, struct JSONObject *child, int index);
 
 #endif // !CONFIG_H

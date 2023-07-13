@@ -9,6 +9,8 @@
 #include <gtk/gtk.h>
 
 #include "config.h"
+#include "utils.h"
+
 
 struct Module {
     GObject *widget;

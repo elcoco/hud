@@ -44,5 +44,5 @@ void on_drag_begin(GtkDragSource *source, GdkDrag *drag, gpointer user_data)
     GdkPaintable *paintable = gtk_widget_paintable_new(GTK_WIDGET(image));
     gtk_drag_source_set_icon(source, paintable, 0, 0);
     g_object_unref(paintable);
-    printf("dragging start: %s\n", g_app_info_get_name(item->app_info));
+    //printf("dragging start: %s\n", g_app_info_get_name(item->app_info));
 }

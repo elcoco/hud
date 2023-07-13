@@ -131,7 +131,7 @@ static int json_atoi_err(char *str, int *buf)
     return 1;
 }
 
-static int count_children(struct JSONObject *parent)
+int json_count_children(struct JSONObject *parent)
 {
     /* Count children of object or array */
     int count = 0;
@@ -356,7 +356,7 @@ struct JSONObject* json_get_child_by_index(struct JSONObject *parent, int index)
     return NULL;
 }
 
-static void json_object_append_child(struct JSONObject *parent, struct JSONObject *child)
+void json_object_append_child(struct JSONObject *parent, struct JSONObject *child)
 {
     /* we are not creating array here but in json_parse_object().
      * So we should either come up with a solution or drop the functionality
@@ -392,7 +392,7 @@ static void json_object_append_child(struct JSONObject *parent, struct JSONObjec
     }
 }
 
-static struct JSONObject* json_object_insert_child(struct JSONObject *parent, struct JSONObject *child, int index)
+struct JSONObject* json_object_insert_child(struct JSONObject *parent, struct JSONObject *child, int index)
 {
     assertf(parent != NULL, "parent == NULL");
     assertf(child != NULL, "child == NULL");
@@ -439,7 +439,7 @@ static struct JSONObject* json_object_insert_child(struct JSONObject *parent, st
             //child->index = index;
         }
     }
-    parent->length = count_children(parent);
+    parent->length = json_count_children(parent);
     return child;
 }
 
@@ -1236,7 +1236,7 @@ struct JSONObject *json_set_path(struct JSONObject *jo_cur, const char *buf_path
                 assertf(child->key == NULL, "Failed to replace child at [%d] in array, child has key: %s", seg.index, child->key);
 
                 if (seg.parsed == JSON_PR_ARR_INDEX_LAST)
-                    json_object_replace_child_at_index(jo_found->parent, child, count_children(jo_found->parent)-1);
+                    json_object_replace_child_at_index(jo_found->parent, child, json_count_children(jo_found->parent)-1);
                 else if (seg.parsed == JSON_PR_ARR_INDEX_REPLACE)
                     json_object_replace_child_at_index(jo_found->parent, child, seg.index);
             }
@@ -1329,7 +1329,7 @@ struct JSONObject *json_set_path(struct JSONObject *jo_cur, const char *buf_path
                 }
 
                 else if  (seg_next.parsed == JSON_PR_OBJ_KEY) {
-                    if (seg.index > count_children(jo_cur))
+                    if (seg.index > json_count_children(jo_cur))
                         RET_NULL("Index '%d' doesn't exist in array\n", seg.index);
 
                     DEBUG("implicit creation of object in array at index=%d\n", seg.index);

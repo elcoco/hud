@@ -32,6 +32,8 @@ int get_all_from_pipe(FILE* pipe, char **buf);
 int ts_to_time_elapsed(time_t t, char *buf);
 GAppInfo* find_appinfo(const char *app_name);
 
+void on_editable_escape_pressed(GtkGridView *self, gpointer main_win);
+
 void update_prop_str(GObject *item, const char *key, const char *value, int force);
 void update_prop_uint64(GObject *item, const char *key, uint64_t value, int force);
 void update_prop_int(GObject *item, const char *key, int value, int force);

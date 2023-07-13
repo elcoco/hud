@@ -22,6 +22,8 @@
 
 #define MAX_PATH_LEN 64
 
+// https://book.huihoo.com/gtk+-gnome-application-development/sec-containers.html
+
 
 // main maindow
 GObject *win = NULL;
@@ -161,7 +163,7 @@ static gboolean on_stack_moved_focus_cb(GtkWidget *widget, GObject *pspec, gpoin
 
 static gboolean on_mod_exit(GtkWidget *widget, GObject *pspec, gpointer data)
 {
-    printf("received exit!!!!!!\n");
+    DEBUG("received exit!!!!!!\n");
     if (state.hide_on_close)
         set_win_invisible(GTK_WINDOW(win));
     else
@@ -244,18 +246,18 @@ static void app_activate_cb(GtkApplication *app, struct Config *c)
 
 static void show_help()
 {
-    printf("HUD :: Hud stuff\n");
-    printf("Optional args:\n");
-    printf("  -f <name>     Focus page at start\n");
-    printf("  -H            Hide window instead of close\n");
-    printf("  -D            Debug\n");
-    printf("  -h            Show help\n");
+    INFO("HUD :: Hud stuff\n");
+    INFO("Optional args:\n");
+    INFO("  -f <name>     Focus page at start\n");
+    INFO("  -H            Hide window instead of close\n");
+    INFO("  -D            Debug\n");
+    INFO("  -h            Show help\n");
 }
 
 static int parse_args(struct State *s, int argc, char **argv)
 {
     int option;
-    printf("Parsing args\n");
+    DEBUG("Parsing args\n");
 
     while((option = getopt(argc, argv, "f:HhDF")) != -1) {
         switch (option) {
@@ -272,7 +274,7 @@ static int parse_args(struct State *s, int argc, char **argv)
                 s->do_debug = 1;
                 break;
             case ':': 
-                fprintf(stderr, "Option needs a value\n"); 
+                ERROR("Option needs a value\n"); 
                 return -1;
             case 'h': 
                 show_help();
@@ -311,7 +313,7 @@ int main(int argc, char **argv)
 
     if ((dir = getenv("XDG_CONFIG_HOME")) == NULL) {
         if ((dir = getenv("HOME")) == NULL) {
-            printf("$XDG_CONFIG_HOME and $HOME not set\n");
+            ERROR("$XDG_CONFIG_HOME and $HOME not set\n");
             return -1;
         }
         else {
@@ -325,7 +327,7 @@ int main(int argc, char **argv)
     sprintf(path, "%s/%s", dir, filename);
     struct Config *c = config_init(path);
     if (config_file_exists(c) < CONFIG_SUCCESS) {
-        printf("Writing config defaults to: %s\n", c->path);
+        INFO("Writing config defaults to: %s\n", c->path);
         if (config_file_create(c) < CONFIG_SUCCESS)
             return 0;
         config_write_defaults(c);

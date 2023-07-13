@@ -31,8 +31,8 @@ void rgline_destroy(struct RGLine *l)
 
 void rgline_print(struct RGLine *l)
 {
-    printf(">> %s\n", l->path);
-    printf("   %s\n", l->text);
+    INFO(">> %s\n", l->path);
+    INFO("   %s\n", l->text);
 }
 
 void rgline_print_all(struct RGLine *l)
@@ -60,11 +60,11 @@ int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop)
                                              RIPGREP_PWD);
 
     FILE *pipe = popen(cmd, "r");
-    printf("exec: %s\n", cmd);
+    DEBUG("exec: %s\n", cmd);
 
     while (!feof(pipe)) {
         if (*do_stop == 1) {
-            printf(">>>>>>>>> KILLING RG\n");
+            DEBUG(">>>>>>>>> KILLING RG\n");
             break;
         }
 
@@ -85,7 +85,7 @@ int rg_request(const char *search, struct RGLine *l, int amount, int *do_stop)
         free(buf);
 
         if (rn == NULL) {
-            fprintf(stderr, "Error in json\n");
+            ERROR("Error in json\n");
             goto on_err;
         }
 

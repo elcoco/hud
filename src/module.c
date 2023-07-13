@@ -80,10 +80,11 @@ void module_debug(struct Module *m)
     int n = 0;
 
     while (tmp != NULL) {
-        if (tmp == m) 
-            printf("* %d: %s\n", n++, tmp->name);
+        if (tmp == m) {
+            DEBUG("* %d: %s\n", n++, tmp->name);
+        }
         else
-            printf("  %d: %s\n", n++, tmp->name);
+            DEBUG("  %d: %s\n", n++, tmp->name);
 
         tmp = tmp->next;
     }
@@ -103,24 +104,24 @@ void module_destroy_all(struct Module *mod)
 
 void module_activate(struct Module *m)
 {
-    printf("Activate module: %s\n", m->name);
+    DEBUG("Activate module: %s\n", m->name);
     m->widget = m->init_cb(m);
 }
 
 void module_deactivate(struct Module *m)
 {
-    printf("Deactivate module: %s\n", m->name);
+    DEBUG("Deactivate module: %s\n", m->name);
 }
 
 void module_lock(struct Module *m)
 {
-    printf("%s: LOCK\n", m->name);
+    DEBUG("%s: LOCK\n", m->name);
     m->lock = 1;
 }
 
 void module_unlock(struct Module *m)
 {
-    printf("%s: UNLOCK\n", m->name);
+    DEBUG("%s: UNLOCK\n", m->name);
     m->lock = 0;
 }
 

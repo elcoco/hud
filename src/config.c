@@ -14,7 +14,7 @@ enum ConfigReturn config_file_exists(struct Config *c)
 {
     FILE *fp = fopen(c->path, "r");
     if (fp == NULL) {
-        printf("CONFIG: File doesn't exist: %s\n", c->path);
+        ERROR("CONFIG: File doesn't exist: %s\n", c->path);
         return CONFIG_FILE_NOT_FOUND;
     }
 
@@ -105,3 +105,47 @@ enum ConfigReturn config_get_child(struct Config *c, char *path, struct JSONObje
 
     return CONFIG_SUCCESS;
 }
+
+enum ConfigReturn config_remove_child(struct Config *c, char *path)
+{
+    struct JSONObject *jo = json_load_file(c->path);
+    struct JSONObject *item = json_get_path(jo, path);
+    if (item == NULL)
+        return CONFIG_ERROR;
+
+    json_object_destroy(item);
+    json_object_to_file(jo, c->path, 4);
+    return CONFIG_SUCCESS;
+}
+
+enum ConfigReturn config_array_insert(struct Config *c, char *path, struct JSONObject *child, int index)
+{
+    struct JSONObject *rn = json_load_file(c->path);
+
+    if (rn == NULL)
+        return CONFIG_ERROR;
+
+    struct JSONObject *jo = json_get_path(rn, path);
+
+    if (jo == NULL)
+        return CONFIG_ERROR;
+
+    if (!jo->is_array)
+        return CONFIG_ERROR;
+
+
+    int len = json_count_children(jo);
+    if (index >= len) {
+        json_object_append_child(jo, child);
+    }
+    else {
+        if (!json_object_insert_child(jo, child, index))
+            return CONFIG_ERROR;
+    }
+
+    json_object_to_file(rn, c->path, 4);
+    return CONFIG_ERROR;
+}
+
+
+

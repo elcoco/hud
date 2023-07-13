@@ -4,21 +4,22 @@
   <!-- interface-name gui.ui -->
   <requires lib="gtk" version="4.6"/>
   <object class="GtkBox" id="apps_box">
+    <property name="hexpand">True</property>
+    <property name="hexpand-set">True</property>
     <property name="orientation">vertical</property>
     <child>
       <object class="GtkSearchEntry" id="apps_se">
         <property name="halign">center</property>
         <property name="margin-bottom">10</property>
-        <property name="margin-top">10</property>
+        <property name="margin-top">40</property>
         <property name="placeholder-text">Search Apps</property>
       </object>
     </child>
     <child>
       <object class="GtkScrolledWindow" id="apps_sw">
-        <property name="margin-top">50</property>
+        <property name="hscrollbar-policy">never</property>
         <child>
           <object class="GtkGridView" id="apps_gv">
-            <property name="halign">center</property>
             <property name="max-columns">100</property>
             <property name="vexpand">True</property>
           </object>
@@ -27,12 +28,14 @@
     </child>
   </object>
   <object class="GtkBox" id="notifications_box">
+    <property name="halign">center</property>
     <property name="orientation">vertical</property>
+    <property name="width-request">800</property>
     <child>
       <object class="GtkSearchEntry" id="notifications_se">
         <property name="halign">center</property>
         <property name="margin-bottom">10</property>
-        <property name="margin-top">10</property>
+        <property name="margin-top">40</property>
         <property name="placeholder-text">Search Notifications</property>
       </object>
     </child>
@@ -92,12 +95,13 @@
     </child>
   </object>
   <object class="GtkBox" id="search_box">
+    <property name="hexpand">True</property>
     <property name="orientation">vertical</property>
     <child>
       <object class="GtkSearchEntry" id="search_se">
         <property name="halign">center</property>
         <property name="margin-bottom">10</property>
-        <property name="margin-top">10</property>
+        <property name="margin-top">40</property>
         <property name="placeholder-text">Search in files</property>
       </object>
     </child>
@@ -161,26 +165,21 @@
     <child>
       <object class="GtkBox" id="main_box">
         <property name="orientation">vertical</property>
+        <property name="width-request">1000</property>
         <child>
-          <object class="GtkBox">
+          <object class="GtkStack" id="main_stack">
+            <property name="hhomogeneous">False</property>
+            <property name="margin-end">10</property>
+            <property name="margin-start">10</property>
+            <property name="transition-type">crossfade</property>
+          </object>
+        </child>
+        <child>
+          <object class="GtkStackSwitcher">
             <property name="halign">center</property>
-            <property name="orientation">vertical</property>
-            <property name="width-request">1000</property>
-            <child>
-              <object class="GtkStack" id="main_stack">
-                <property name="margin-end">10</property>
-                <property name="margin-start">10</property>
-                <property name="transition-type">crossfade</property>
-              </object>
-            </child>
-            <child>
-              <object class="GtkStackSwitcher">
-                <property name="halign">center</property>
-                <property name="margin-bottom">10</property>
-                <property name="margin-top">10</property>
-                <property name="stack">main_stack</property>
-              </object>
-            </child>
+            <property name="margin-bottom">10</property>
+            <property name="margin-top">10</property>
+            <property name="stack">main_stack</property>
           </object>
         </child>
       </object>
@@ -257,7 +256,7 @@
   </object>
   <object class="GtkBox" id="dock_box">
     <property name="halign">center</property>
-    <property name="margin-bottom">30</property>
+    <property name="margin-bottom">10</property>
     <property name="margin-top">30</property>
     <property name="valign">center</property>
     <child>

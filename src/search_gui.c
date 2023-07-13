@@ -212,6 +212,8 @@ GObject* search_gui_init(struct Module *m)
     g_signal_connect(factory, "setup", G_CALLBACK(setup_cb), NULL);
     g_signal_connect(factory, "bind",  G_CALLBACK(bind_cb), NULL);
 
+    g_signal_connect(G_OBJECT(w_search_entry), "stop-search", G_CALLBACK(on_editable_escape_pressed), m->main_win);
+
     gtk_list_view_set_model(GTK_LIST_VIEW(w_list_view), GTK_SELECTION_MODEL(no_sel));
     gtk_list_view_set_factory(GTK_LIST_VIEW(w_list_view), GTK_LIST_ITEM_FACTORY(factory));
 
