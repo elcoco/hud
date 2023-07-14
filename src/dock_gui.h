@@ -12,6 +12,7 @@
 #include "utils.h"
 
 #define DOCK_UI_PATH "/resources/ui/gui.ui"
+#define DOCK_CONFIG_PATH "modules/dock/apps"
 
 GObject* dock_gui_init(struct Module *m);
 

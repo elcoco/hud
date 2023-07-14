@@ -3,27 +3,25 @@
 #include "config.h"
 #include "json.h"
 
+
 static GListModel *app_model_new(struct Config* c)
 {
     // TODO read from config file
-    GListStore *store = g_list_store_new(G_TYPE_OBJECT);
+    GListStore *model = g_list_store_new(G_TYPE_OBJECT);
     GList *app;
-
-    app = g_app_info_get_all();
-    while (app != NULL) {
-        if (strcmp(g_app_info_get_executable(app->data), "alacritty") == 0) {
-            AppItem *item = app_item_new(app->data);
-            g_list_store_append(store, item);
-            break;
-        }
-        app = app->next;
-    }
 
     // TODO this should be a config function mostly
     struct JSONObject *jo;
-    if (config_get_child(c, "modules/dock/apps", &jo) != CONFIG_SUCCESS) {
+    if (config_get_child(c, DOCK_CONFIG_PATH, &jo) != CONFIG_SUCCESS) {
         printf("Failed to get dock config\n");
-        return G_LIST_MODEL(store);
+        return G_LIST_MODEL(model);
+    }
+
+    // if there are no items in config file add an empty spot so we can drop stuff there
+    if (json_count_children(jo) == 0) {
+        AppItem *item = app_item_new(NULL);
+        g_list_store_append(G_LIST_STORE(model), G_OBJECT(item));
+        return G_LIST_MODEL(model);
     }
 
     struct JSONObject *tmp = jo->value;
@@ -47,7 +45,7 @@ static GListModel *app_model_new(struct Config* c)
             if (strcmp(app_name, name) == 0) {
                 DEBUG("from config: %s\n", name);
                 AppItem *item = app_item_new(app->data);
-                g_list_store_append(store, item);
+                g_list_store_append(model, item);
                 break;
             }
             app = app->next;
@@ -55,66 +53,37 @@ static GListModel *app_model_new(struct Config* c)
         tmp = tmp->next;
     }
 
-    return G_LIST_MODEL(store);
+    return G_LIST_MODEL(model);
 }
+
 
 static void on_drag_end(GtkDragSource* self, GdkDrag* drag, gboolean delete_data, gpointer args)
 {
     GtkListItem *listitem = g_list_nth(args, 0)->data;
     GListStore  *model    = g_list_nth(args, 1)->data;
     struct Config  *c    = g_list_nth(args, 2)->data;
-    AppItem *appitem = gtk_list_item_get_item(GTK_LIST_ITEM(listitem));
 
     assertf(listitem != NULL, "listitem == NULL");
     assertf(model != NULL, "model == NULL");
-    // TODO remove path from config
 
-    //struct JSONObject *apps;
-    //if (config_get_child(c, "modules/dock/apps", &apps) < CONFIG_SUCCESS) {
-    //    ERROR("Failed to get child\n");
-    //    return;
-    //}
-    //struct JSONObject *jo = apps->value;
+    app_item_remove_empty(G_LIST_MODEL(model), -1);
+    g_list_store_remove(model, gtk_list_item_get_position(GTK_LIST_ITEM(listitem)));
+    app_item_write_config(G_LIST_MODEL(model), c, "modules/dock/apps");
 
+    // if last item, add empty item so we can drop stuff
     struct JSONObject *rn = json_load_file(c->path);
-    struct JSONObject *jo = json_get_path(rn, "modules/dock/apps");
-    if (jo == NULL)
+    if (rn == NULL)
+        return;
+    
+    struct JSONObject *apps = json_get_path(rn, DOCK_CONFIG_PATH);
+    if (apps == NULL)
         return;
 
-    jo = jo->value;
-    struct JSONObject *child = NULL;
-
-    while (jo != NULL) {
-        child = json_get_path(jo, "name");
-        if (child == NULL) {
-            ERROR("Failed to get name in child\n");
-            return;
-        }
-        DEBUG("child: %s\n", json_get_string(child));
-        if (strcmp(g_app_info_get_name(appitem->app_info), json_get_string(child)) == 0)
-            break;
-        jo = jo->next;
+    if (json_count_children(apps) == 0) {
+        AppItem *item = app_item_new(NULL);
+        g_list_store_append(G_LIST_STORE(model), G_OBJECT(item));
     }
-
-    if (jo) {
-        printf("REMOVED!\n");
-        json_object_destroy(jo);
-        json_object_to_file(rn, c->path, 4);
-    }
-    else
-        DEBUG("Failed to Removed item\n");
-
-
-    //buf path[256] = "";
-    //sprintf(path,, "modules/dock/apps/%s"
-    //config_remove_child(c, 
-        
-
-
-
-
-
-    g_list_store_remove(model, gtk_list_item_get_position(GTK_LIST_ITEM(listitem)));
+    //json_print(rn, 0);
 }
 
 static gboolean on_drop_icon(GtkDropTarget *target, const GValue *value, double x, double y, gpointer args)
@@ -123,47 +92,30 @@ static gboolean on_drop_icon(GtkDropTarget *target, const GValue *value, double 
     GListModel *model = g_list_nth(args, 1)->data;
     struct Config  *c    = g_list_nth(args, 2)->data;
 
-    GObject *listitem_target = g_value_get_object(value);
-    AppItem *appitem = gtk_list_item_get_item(GTK_LIST_ITEM(listitem_target));
+    GObject *listitem_source = g_value_get_object(value);
+    AppItem *appitem_source = gtk_list_item_get_item(GTK_LIST_ITEM(listitem_source));
+    AppItem *appitem_target = gtk_list_item_get_item(GTK_LIST_ITEM(li_target));
 
     int pos = gtk_list_item_get_position(GTK_LIST_ITEM(li_target));
+
+    if (!app_item_is_empty(appitem_target)) {
+        // TODO when you drop on an non-empty icon, the action will be canceled
+        //      but the source will be removed by on_drag_end
+        //      This should be fixed by sending the right signal i guess
+        app_item_remove_empty(G_LIST_MODEL(model), -1);
+        return 1;
+    }
+
     // remove empty unit
     DEBUG("DROP :: Remove empty unit @ %d\n", pos);
-    g_list_store_remove(G_LIST_STORE(model), pos);
+    app_item_remove_empty(G_LIST_MODEL(model), -1);
+    //g_list_store_remove(G_LIST_STORE(model), pos);
 
     DEBUG("DROP :: Insert unit @ %d\n", pos);
-    g_list_store_insert(G_LIST_STORE(model), pos, G_OBJECT(appitem));
+    g_list_store_insert(G_LIST_STORE(model), pos, G_OBJECT(appitem_source));
 
-    struct JSONObject *app = json_object_init_object(NULL, NULL);
-    json_object_init_string(app, "type", "appinfo");
-    json_object_init_string(app, "name", g_app_info_get_name(appitem->app_info));
-    if (config_array_insert(c, "modules/dock/apps", app, pos) < CONFIG_SUCCESS)
-        ERROR("Failed to write app to config\n");
-
-    json_print(app, 0);
-    DEBUG("Insert $ %d\n", pos);
-    // TODO this now appends but should insert
-    //config_set_str(c, "modules/dock/apps/[?]", "type", "appinfo");
-    //config_set_str(c, "modules/dock/apps/[-1]", "name", g_app_info_get_name(appitem->app_info));
-
+    app_item_write_config(G_LIST_MODEL(model), c, "modules/dock/apps");
     return 1;
-
-}
-
-void remove_empty(GListModel *model, int pos_exclude)
-{
-    // remove all empty items except for item at pos_exclude
-    //for (int i=0 ; i<g_list_model_get_n_items(model) ; i++) {
-    for (int i=g_list_model_get_n_items(model)-1 ; i>=0 ; i--) {
-        if (i == pos_exclude)
-            continue;
-
-        AppItem *item = APP_ITEM(g_list_model_get_object(model, i));
-        if (item->app_info == NULL) {
-            printf("removing item: %d\n", i);
-            g_list_store_remove(G_LIST_STORE(model), i);
-        }
-    }
 }
 
 static void on_motion_icon(GtkDropControllerMotion *controller, double x, double y, gpointer args)
@@ -178,7 +130,7 @@ static void on_motion_icon(GtkDropControllerMotion *controller, double x, double
     int pos = gtk_list_item_get_position(GTK_LIST_ITEM(li_target));
 
     // we are hovering an empty drop space
-    if (appitem->app_info == NULL)
+    if (app_item_is_empty(appitem))
         return;
 
     // get items on the left and right of current item
@@ -193,41 +145,17 @@ static void on_motion_icon(GtkDropControllerMotion *controller, double x, double
         if (appitem_left == NULL || appitem_left->app_info != NULL) {
             //DEBUG("ENTER :: Insert left @ %d\n", pos);
             g_list_store_insert(G_LIST_STORE(model), pos, item);
-            remove_empty(model, pos);
+            app_item_remove_empty(model, pos);
         }
     }
     else {
         if (appitem_right == NULL || appitem_right->app_info != NULL) {
             //DEBUG("ENTER :: Insert right @ %d\n", pos +1);
             g_list_store_insert(G_LIST_STORE(model), pos+1, item);
-            remove_empty(model, pos+1);
+            app_item_remove_empty(model, pos+1);
         }
     }
 }
-
-/*
-static gboolean on_drop_dock(GtkDropTarget *target, const GValue *value, double x, double y, gpointer args)
-{
-    GListStore  *model = g_list_nth(args, 0)->data;
-    struct Config *c   = g_list_nth(args, 1)->data;
-
-    GtkListItem *listitem = GTK_LIST_ITEM(g_value_get_object(value));
-    AppItem *item = gtk_list_item_get_item(listitem);
-
-
-    // todo write to config file
-
-    config_set_str(c, "modules/dock/apps/[?]", "type", "appinfo");
-    config_set_str(c, "modules/dock/apps/[-1]", "name", g_app_info_get_name(item->app_info));
-    g_list_store_append(G_LIST_STORE(model), item);
-
-    //config_set_number(c, "modules/dock/apps/[-1]", "position", gtk_list_item_get_position(GTK_LIST_ITEM(listitem)));
-    //int pos_target = gtk_list_item_get_position(GTK_LIST_ITEM(listitem_target));
-
-    printf("DOCK DRAG_END :: %s\n", g_app_info_get_name(item->app_info));
-    return TRUE;
-}
-*/
 
 static void setup_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpointer user_data)
 {
@@ -259,10 +187,10 @@ static void bind_cb(GtkSignalListItemFactory *self, GtkListItem *listitem, gpoin
     GtkWidget *box = gtk_list_item_get_child(listitem);
     GtkWidget *image = gtk_widget_get_first_child(box);
 
-    if (item->app_info)
-        gtk_image_set_from_gicon(GTK_IMAGE(image), g_app_info_get_icon(APP_ITEM(item)->app_info));
-    else
+    if (app_item_is_empty(item))
         gtk_image_set_from_icon_name(GTK_IMAGE(image), "list-add");
+    else
+        gtk_image_set_from_gicon(GTK_IMAGE(image), g_app_info_get_icon(APP_ITEM(item)->app_info));
 
 
     // setup drag
@@ -308,6 +236,10 @@ static void list_view_run_app_cb(GtkGridView *self, int pos, gpointer args)
     GObject *win      = g_list_nth(args, 1)->data;
 
     AppItem *item = g_list_model_get_item(model, pos);
+
+    if (app_item_is_empty(item))
+        return;
+
     GAppInfo *app_info = item->app_info;
 
     // something something GError

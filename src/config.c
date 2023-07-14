@@ -144,7 +144,7 @@ enum ConfigReturn config_array_insert(struct Config *c, char *path, struct JSONO
     }
 
     json_object_to_file(rn, c->path, 4);
-    return CONFIG_ERROR;
+    return CONFIG_SUCCESS;
 }
 
 
