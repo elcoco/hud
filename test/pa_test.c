@@ -9,6 +9,8 @@
 // compile:
 // gcc -o pcm-playback pa_test.c -o pa_test `pkg-config --cflags --libs libpulse` && ./pa_test
 
+#define SINK_NAME "1"
+
 static pa_mainloop_api *mainloop_api = NULL;
 
 

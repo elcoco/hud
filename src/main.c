@@ -207,13 +207,13 @@ static void app_activate_cb(GtkApplication *app, struct Config *c)
     m = module_init(m,    "notifications", c, notifications_gui_init, NULL);
     m = module_init(m,    "search",        c, search_gui_init, NULL);
     m = module_init(m,    "mpris",         c, mpris_gui_init, NULL);
-//    m = module_init(m,    "dashboard",     dashboard_gui_init, NULL);
+    //m = module_init(m,    "dashboard",     c, dashboard_gui_init, NULL);
 
     struct Module *tmp = m->head;
 
     while (tmp != NULL) {
         // move to initializer
-        tmp->main_win = win;
+        //tmp->main_win = win;
         module_set_main_win(m, win);
 
         module_activate(tmp);

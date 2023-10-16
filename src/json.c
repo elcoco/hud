@@ -1080,7 +1080,7 @@ struct TokenResult get_next_segment_parsed(const char *path, const char *delim)
     result.token[0] = '\0';
     result.rest[0] = '\0';
     result.parsed = JSON_PR_ERROR;
-    result.index = -999;
+    result.index = JSON_TOKEN_RESULT_INVALID_INDEX;
     result.is_last = (strlen(rest) == 0);
 
     if (token) {

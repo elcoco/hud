@@ -145,6 +145,8 @@ struct TokenResult {
     int is_last;
 };
 
+#define JSON_TOKEN_RESULT_INVALID_INDEX -999
+
 struct PathSeg {
     enum JSONDtype dtype;
     char *key;
